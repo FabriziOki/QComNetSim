@@ -105,7 +105,11 @@ This project builds upon established research in quantum network simulation:
 
 ## Acknowledgments
 
-This project is part of a two-semester capstone project at National Taiwan University of Science and Technology (NTUST). Special thanks to the SeQUeNCe team for their foundational work in quantum network simulation.
+This project is part of a two-semester capstone project at National Taiwan University of Science and Technology (NTUST), where I am an exchange student from UPTP, Paraguay. 
+
+Special thanks to the SeQUeNCe team for their foundational work in quantum network simulation, which serves as a key reference and validation benchmark for this project.
+
+This work is conducted under the guidance of Binayak Kar and Pankaj Kumar at Quantum Research Lab, NTUST.
 
 ---
 
