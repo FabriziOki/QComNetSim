@@ -95,7 +95,8 @@ This project builds upon established research in quantum network simulation:
 ## Project Team
 
 - **Developer**: Fabrizio Diaz, Undergraduate CS Student, NTUST
-- **Advisor**: Pankaj Kumar, PhD, NTUST
+- **Direct Advisor**: Pankaj Kumar, PhD, NTUST
+- **Faculty Advisor**: Binayak Kar, Project Assistant Professor, NTUST
 - **Lab**: Quantum Research Lab
 
 ## License
