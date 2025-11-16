@@ -69,7 +69,7 @@ QComNetSim aims to combine the best aspects: SeQUeNCe's accuracy with Rust's per
 
 This project builds upon established research in quantum network simulation:
 
-1. **SeQUeNCe - Simulator of QUantum Network Communication**
+1. **SeQUeNCe - Simulator of Quantum Network Communication**
    - Wu, X., Kolar, A., Chung, J., Jin, D., Zhong, T., Kettimuthu, R., & Suchara, M. (2021). SeQUeNCe: a customizable discrete-event simulator of quantum networks. *Quantum Science and Technology*, 6(4). https://doi.org/10.1088/2058-9565/ac22f6
    - Repository: https://github.com/sequence-toolbox/SeQUeNCe
    - Our approach: Validate against SeQUeNCe's accurate physics models
@@ -100,7 +100,7 @@ This project builds upon established research in quantum network simulation:
 
 ## License
 
-[To be determined - discuss with advisor]
+[To be determined]
 
 ## Acknowledgments
 
