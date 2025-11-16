@@ -23,7 +23,7 @@ QComNetSim aims to create a small-scale, educational quantum network simulator t
 ### Semester 1 (Fall 2024)
 - [x] Project architecture design
 - [x] Core library setup
-- [ ] Basic quantum state representation
+- [x] Basic quantum state representation
 - [ ] 2-node linear entanglement generation
 - [ ] 3-node entanglement swapping
 - [ ] BB84 protocol (basic implementation)
