@@ -1,4 +1,8 @@
-# QComNetSim - Quantum Communication Network Simulator
+<div align="center">
+  <img src="assets/logo.svg" alt="QComNetSim Logo" width="300"/>
+  <h1>QComNetSim</h1>
+  <p>Quantum Communication Network Simulator</p>
+</div>
 
 > **Status**: Active Development - (Fall 2024)  
 > **First Target Completion**: December 24, 2024 
