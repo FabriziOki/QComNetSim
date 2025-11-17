@@ -1,7 +1,5 @@
 <div align="center">
-<img src="assets/name.svg" alt="QComNetSim Logo" width="1000" 
-       style="background-color: white; border-radius: 15px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"/>
-  <p>Quantum Communication Network Simulator</p>
+<img src="assets/name.svg" alt="QComNetSim Logo" width="1000"/>
 </div>
 
 > **Status**: Active Development - (Fall 2024)  
