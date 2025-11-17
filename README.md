@@ -1,5 +1,6 @@
 <div align="center">
-  <img src="assets/name.svg" alt="QComNetSim Logo" width="500" style="border-radius: 20px; border: 2px solid #e1e4e8; padding: 20px;"/>
+<img src="assets/name.svg" alt="QComNetSim Logo" width="400" 
+       style="background-color: white; border-radius: 15px; padding: 20px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);"/>
   <p>Quantum Communication Network Simulator</p>
 </div>
 
