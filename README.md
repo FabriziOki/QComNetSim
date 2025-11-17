@@ -95,8 +95,8 @@ This project builds upon established research in quantum network simulation:
 ## Project Team
 
 - **Developer**: Fabrizio Diaz, Undergraduate CS Student, NTUST
-- **Direct Advisor**: Pankaj Kumar, PhD, NTUST
-- **Faculty Advisor**: Binayak Kar, Project Assistant Professor, NTUST
+- **Direct Advisor**: Pankaj Kumar, PhD Scholar, NTUST
+- **Faculty Advisor**: Prof. Binayak Kar, Assistant Professor, NTUST
 - **Lab**: Quantum Research Lab
 
 ## License
@@ -105,7 +105,7 @@ This project builds upon established research in quantum network simulation:
 
 ## Acknowledgments
 
-This project is part of a two-semester capstone project at National Taiwan University of Science and Technology (NTUST), where I am an exchange student from UPTP, Paraguay. 
+This project is part of a two-semester capstone project at National Taiwan University of Science and Technology (NTUST), where I am an exchange student from Taiwan-Paraguay Polytechnic University. 
 
 Special thanks to the SeQUeNCe team for their foundational work in quantum network simulation, which serves as a key reference and validation benchmark for this project.
 
@@ -113,4 +113,4 @@ This work is conducted under the guidance of Binayak Kar and Pankaj Kumar at Qua
 
 ---
 
-**Note**: This is an active research project. Documentation, features, and APIs are subject to change as development progresses.
+> **Note**: This is an active research project. Documentation, features, and APIs are subject to change as development progresses.
