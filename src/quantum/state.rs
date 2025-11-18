@@ -77,6 +77,24 @@ impl Qubit {
         }
     }
 
+    /// Create a qubit with random state (uniformly distributed on Bloch sphere)
+    pub fn new_random() -> Self {
+        use rand::Rng;
+        let mut rng = rand::rng();
+
+        // Generate random complex amplitudes
+        let alpha_re = rng.random::<f64>() * 2.0 - 1.0; // [-1, 1]
+        let alpha_im = rng.random::<f64>() * 2.0 - 1.0;
+        let beta_re = rng.random::<f64>() * 2.0 - 1.0;
+        let beta_im = rng.random::<f64>() * 2.0 - 1.0;
+
+        let alpha = Complex64::new(alpha_re, alpha_im);
+        let beta = Complex64::new(beta_re, beta_im);
+
+        // Normalize automatically
+        Qubit::new_custom(alpha, beta)
+    }
+
     /// Create a custom qubit state (will normalize automatically)
     pub fn new_custom(alpha: Complex64, beta: Complex64) -> Self {
         let norm = (alpha.norm_sqr() + beta.norm_sqr()).sqrt();
