@@ -195,4 +195,12 @@ mod tests {
         // Bell state should have perfect fidelity with itself
         assert!((bell.fidelity(&bell) - 1.0).abs() < 1e-10);
     }
+
+    #[test]
+    fn test_random_qubit() {
+        let q = Qubit::new_random();
+        assert!(q.is_normalized());
+        assert!(q.prob_zero() >= 0.0 && q.prob_zero() <= 1.0);
+        assert!(q.prob_one() >= 0.0 && q.prob_one() <= 1.0);
+    }
 }
