@@ -30,6 +30,7 @@ QComNetSim aims to create a small-scale, educational quantum network simulator t
 - [ ] 3-node entanglement swapping
 - [ ] BB84 protocol (basic implementation)
 - [ ] TOML Configuration file support
+- [ ] Add Realistic Noise & Loss Model
 - [ ] CLI interface with CSV output
 - [ ] Validation against SeQUeNCe
 
