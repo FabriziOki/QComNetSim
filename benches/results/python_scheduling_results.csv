@@ -1,0 +1,9 @@
+language,benchmark,size,time_ms
+Python,Insert,100,0.06219540046004113
+Python,Insert,1000,0.674316200093017
+Python,Insert,10000,7.14417099916318
+Python,Insert,100000,44.12122720023035
+Python,Insert+Remove,100,0.12323820046731271
+Python,Insert+Remove,1000,1.471961800052668
+Python,Insert+Remove,10000,18.12667659978615
+Python,Insert+Remove,100000,120.55809439989389

@@ -1,0 +1,7 @@
+language,benchmark,size,time_ms
+Python,Sequential,100,1.0741363330453169
+Python,Sequential,1000,10.972115667148804
+Python,Sequential,10000,98.87126799973582
+Python,Parallel,100,27.511195999977645
+Python,Parallel,1000,25.7901586664957
+Python,Parallel,10000,38.06405799999387
