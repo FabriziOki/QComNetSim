@@ -1,4 +1,4 @@
-use QComNetSim::quantum::{hadamard, pauli_x, pauli_y, pauli_z, Qubit};
+use qcomnetsim::quantum::{hadamard, pauli_x, pauli_y, pauli_z, Qubit};
 
 fn main() {
     println!("QComNetSim - Pauli Gates Demo\n");

@@ -1,4 +1,4 @@
-use QComNetSim::simulation::{Event, EventScheduler, EventType};
+use qcomnetsim::simulation::{Event, EventScheduler, EventType};
 
 fn main() {
     let mut scheduler = EventScheduler::new();

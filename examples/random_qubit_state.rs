@@ -1,4 +1,4 @@
-use QComNetSim::quantum::*;
+use qcomnetsim::quantum::*;
 
 fn main() {
     println!("QComNetSim - Random Qubit States\n");

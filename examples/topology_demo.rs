@@ -1,4 +1,4 @@
-use QComNetSim::network::{NetworkTopology, QuantumChannel, QuantumNode};
+use qcomnetsim::network::{NetworkTopology, QuantumChannel, QuantumNode};
 
 fn main() {
     println!("QComNetSim - Network Topology Demo\n");
