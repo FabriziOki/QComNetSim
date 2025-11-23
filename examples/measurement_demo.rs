@@ -9,7 +9,7 @@ fn main() {
     let config = MeasurementConfig::perfect();
 
     let mut correct = 0;
-    let trials = 1000;
+    let trials = 10000;
 
     for _ in 0..trials {
         let mut qubit = Qubit::new_zero();
