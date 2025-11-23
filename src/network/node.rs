@@ -1,3 +1,4 @@
+use crate::quantum::noise::fidelity_after_decoherence;
 use crate::quantum::TwoQubitState;
 
 /// A quantum entangled pair stored in node memory
@@ -11,11 +12,18 @@ pub struct StoredPair {
     pub creation_time: f64,
     /// Current fidelity of this pair
     pub fidelity: f64,
+    /// Coherence time in milliseconds
+    pub coherence_time_ms: f64,
 }
 
 impl StoredPair {
     /// Create a new stored entangled pair
-    pub fn new(partner_node_id: usize, state: TwoQubitState, creation_time: f64) -> Self {
+    pub fn new(
+        partner_node_id: usize,
+        state: TwoQubitState,
+        creation_time: f64,
+        coherence_time_ms: f64,
+    ) -> Self {
         // Calculate initial fidelity (for now, assume perfect Bell state)
         let ideal_bell = TwoQubitState::new_bell_phi_plus();
         let fidelity = state.fidelity(&ideal_bell);
@@ -25,7 +33,19 @@ impl StoredPair {
             state,
             creation_time,
             fidelity,
+            coherence_time_ms,
         }
+    }
+
+    /// Update fidelity based on current time (apply decoherence)
+    pub fn update_fidelity(&mut self, current_time: f64) {
+        let elapsed = current_time - self.creation_time;
+        self.fidelity = fidelity_after_decoherence(self.fidelity, elapsed, self.coherence_time_ms);
+    }
+
+    /// Check if pair is still usable (above fidelity threshold)
+    pub fn is_usable(&self, fidelity_threshold: f64) -> bool {
+        self.fidelity >= fidelity_threshold
     }
 }
 
@@ -126,7 +146,7 @@ mod tests {
         let mut node = QuantumNode::new(0, 2);
 
         let bell_state = TwoQubitState::new_bell_phi_plus();
-        let pair = StoredPair::new(1, bell_state, 0.0);
+        let pair = StoredPair::new(1, bell_state, 0.0, 100.0);
 
         assert!(node.store_pair(pair).is_ok());
         assert_eq!(node.num_stored_pairs(), 1);
@@ -138,8 +158,8 @@ mod tests {
         let mut node = QuantumNode::new(0, 1);
 
         let bell_state = TwoQubitState::new_bell_phi_plus();
-        let pair1 = StoredPair::new(1, bell_state.clone(), 0.0);
-        let pair2 = StoredPair::new(2, bell_state, 0.0);
+        let pair1 = StoredPair::new(1, bell_state.clone(), 0.0, 100.0);
+        let pair2 = StoredPair::new(2, bell_state, 0.0, 100.0);
 
         assert!(node.store_pair(pair1).is_ok());
         assert!(!node.has_memory_available());
@@ -153,8 +173,8 @@ mod tests {
         let mut node = QuantumNode::new(0, 5);
 
         let bell_state = TwoQubitState::new_bell_phi_plus();
-        let pair1 = StoredPair::new(1, bell_state.clone(), 0.0);
-        let pair2 = StoredPair::new(2, bell_state, 0.0);
+        let pair1 = StoredPair::new(1, bell_state.clone(), 0.0, 100.0);
+        let pair2 = StoredPair::new(2, bell_state, 0.0, 100.0);
 
         node.store_pair(pair1).unwrap();
         node.store_pair(pair2).unwrap();
@@ -169,7 +189,7 @@ mod tests {
         let mut node = QuantumNode::new(0, 5);
 
         let bell_state = TwoQubitState::new_bell_phi_plus();
-        let pair = StoredPair::new(1, bell_state, 0.0);
+        let pair = StoredPair::new(1, bell_state, 0.0, 100.0);
 
         node.store_pair(pair).unwrap();
         assert_eq!(node.num_stored_pairs(), 1);
@@ -183,7 +203,7 @@ mod tests {
     #[test]
     fn test_stored_pair_fidelity() {
         let bell_state = TwoQubitState::new_bell_phi_plus();
-        let pair = StoredPair::new(1, bell_state, 0.0);
+        let pair = StoredPair::new(1, bell_state, 0.0, 100.0);
 
         // Perfect Bell state should have fidelity ≈ 1.0
         assert!((pair.fidelity - 1.0).abs() < 1e-10);
@@ -194,9 +214,9 @@ mod tests {
         let mut node = QuantumNode::new(0, 5);
 
         let bell_state = TwoQubitState::new_bell_phi_plus();
-        node.store_pair(StoredPair::new(1, bell_state.clone(), 0.0))
+        node.store_pair(StoredPair::new(1, bell_state.clone(), 0.0, 100.0))
             .unwrap();
-        node.store_pair(StoredPair::new(2, bell_state, 0.0))
+        node.store_pair(StoredPair::new(2, bell_state, 0.0, 100.0))
             .unwrap();
 
         assert_eq!(node.num_stored_pairs(), 2);
