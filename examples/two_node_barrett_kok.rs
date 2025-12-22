@@ -27,23 +27,18 @@ fn main() {
     // Create CSV file
     fs::create_dir_all("data").unwrap();
     let mut csv = File::create("data/qcomnetsim_results.csv").unwrap();
-    writeln!(csv, "distance_km,success_rate,throughput,runtime_ms").unwrap();
+    writeln!(
+        csv,
+        "distance_km,success_rate,throughput,memory_used,avg_fidelity"
+    )
+    .unwrap();
 
     let protocol = BarrettKokProtocol::sequence_parameters();
-
-    // DEBUG: Print protocol config
-    println!("DEBUG - Protocol config:");
-    println!("  BSM efficiency: {}", protocol.bsm_efficiency);
-    println!("  Detector efficiency: {}", protocol.detector_efficiency);
-    println!("  Dark count rate: {}", protocol.dark_count_rate);
-    println!("  Initial fidelity: {}", protocol.initial_fidelity);
 
     for &distance_km in &distances {
         println!("Running simulation for {} km...", distance_km);
 
-        let start_time = Instant::now();
-
-        let (successes, attempts) = run_simulation(
+        let (successes, attempts, avg_fidelity) = run_simulation(
             distance_km as f64,
             attenuation_db_per_km,
             coherence_time_ms,
@@ -53,19 +48,17 @@ fn main() {
             &protocol,
         );
 
-        let runtime_ms = start_time.elapsed().as_millis() as f64;
-
         let success_rate = if attempts > 0 {
             successes as f64 / attempts as f64
         } else {
             0.0
         };
         let throughput = successes as f64 / simulation_time_sec;
-
+        let memory_used = successes;
         writeln!(
             csv,
-            "{},{:.4},{:.4},{:.4}",
-            distance_km, success_rate, throughput, runtime_ms
+            "{},{:.4},{:.4},{},{:.2}",
+            distance_km, success_rate, throughput, memory_used, avg_fidelity,
         )
         .unwrap();
 
@@ -74,7 +67,7 @@ fn main() {
         println!("  Successes: {}", successes);
         println!("  Success rate: {:.4}%", success_rate * 100.0);
         println!("  Throughput: {:.4} pair/sec", throughput);
-        println!("  Runtime: {:.4} ms", runtime_ms);
+        println!("  Avg Fidelity: {:.4}", avg_fidelity);
         println!();
     }
 
@@ -89,7 +82,7 @@ fn run_simulation(
     simulation_time_sec: f64,
     _generation_frequency_khz: f64, // Ignore this
     protocol: &BarrettKokProtocol,
-) -> (usize, usize) {
+) -> (usize, usize, f64) {
     let mut node_a = QuantumNode::new(0, memory_size);
     let mut node_b = QuantumNode::new(1, memory_size);
     let channel = QuantumChannel::new(0, 1, distance_km, attenuation_db_per_km);
@@ -108,13 +101,9 @@ fn run_simulation(
     // Run simulation
     let mut successes = 0;
     let mut attempts = 0;
+    let mut fidelities: Vec<f64> = Vec::new(); // ADD THIS
 
-    println!(
-        "DEBUG - Total events scheduled: {}",
-        scheduler.pending_events()
-    );
     while let Some(event) = scheduler.next_event() {
-        println!("DEBUG - Processing event at time {}", event.time);
         if event.event_type == EventType::EntanglementGeneration {
             attempts += 1;
 
@@ -127,6 +116,9 @@ fn run_simulation(
             ) {
                 Ok(true) => {
                     successes += 1;
+                    if let Some(pair) = node_a.stored_pairs.last() {
+                        fidelities.push(pair.fidelity);
+                    }
                 }
                 Ok(false) => {
                     // Channel or protocol failure
@@ -137,6 +129,11 @@ fn run_simulation(
             }
         }
     }
+    let avg_fidelity = if !fidelities.is_empty() {
+        fidelities.iter().sum::<f64>() / fidelities.len() as f64
+    } else {
+        0.0
+    };
 
-    (successes, attempts)
+    (successes, attempts, avg_fidelity) // RETURN IT
 }

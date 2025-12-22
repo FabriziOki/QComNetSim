@@ -20,17 +20,15 @@ QComNetSim aims to create a small-scale, educational quantum network simulator t
 
 ## Development Roadmap
 
-*(This will be updated weekly)*
-
 ### Semester 1 (Fall 2024)
 - [x] Project architecture design
 - [x] Core library setup
 - [x] Basic quantum state representation
 - [x] 2-node linear entanglement generation
 - [x] Add Realistic Noise & Loss Model
-- [ ] Validation Engine against SeQUeNCe
-- [ ] TOML Configuration file support
-- [ ] Basic CLI interface with CSV output
+- [x] Validation Engine against SeQUeNCe
+- [x] TOML Configuration file support
+- [x] Basic CLI interface with CSV output
 
 ### Semester 2 (Spring 2025)
 - [ ] Graphical user interface
