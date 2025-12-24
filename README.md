@@ -39,33 +39,84 @@ QComNetSim aims to create a small-scale, educational quantum network simulator t
 
 ## Motivation
 
-Existing quantum network simulators have various trade-offs:
+Quantum networks promise revolutionary capabilities in secure communication, distributed quantum computing, and sensing. However, designing and validating quantum network protocols faces fundamental challenges:
 
-**SeQUeNCe**: Highly accurate but Python-based (performance limitations)  
-**QuNetSim**: User-friendly but makes physics simplifications  
-**SimQN**: Network-focused but limited protocol support
+**Physical Complexity**: Real quantum systems exhibit decoherence, photon loss, imperfect gates, and measurement errors. Simulators that ignore these effects produce unrealistic results that fail in deployment.
 
-QComNetSim aims to combine the best aspects: SeQUeNCe's accuracy with Rust's performance, plus a built-in validation framework to ensure correctness.
+**Performance Requirements**: Simulating realistic noise models requires tracking density matrices, applying error channels, and Monte Carlo sampling—computationally intensive operations that become prohibitive for large networks or long timescales.
+
+**Validation Gap**: Without cross-verification against established frameworks, new simulators risk introducing subtle physics errors that invalidate results. Yet most tools lack built-in validation mechanisms.
+
+**Accessibility**: Researchers need tools that balance accuracy with usability—complex enough to model real quantum phenomena, yet approachable enough for rapid protocol development and iteration.
+
+QComNetSim addresses these challenges through:
+- **Realistic physics modeling** with configurable noise parameters
+- **High-performance execution** via Rust's zero-cost abstractions
+- **Built-in validation framework** for cross-simulator verification
+- **Modular architecture** enabling protocol experimentation without sacrificing accuracy
+---
+
+## Building & Running
+
+### Prerequisites
+- Rust 1.75+ (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
+- UV package manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
+
+### Setup
+```bash
+git clone https://github.com/yourusername/qcomnetsim
+cd qcomnetsim
+
+# python venv (optional but recommended)
+uv venv
+
+source .venv/bin/activate
+
+# Install Python dependencies
+uv sync
+
+# Build Rust simulator
+cargo build --release
+```
+
+### Running Simulations
+
+> **Note**: CLI and TOML configuration system is under development and testing. Current workflow uses example binaries:
+```bash
+# Run Barrett-Kok protocol simulation
+cargo run --release --example two_node_barrett_kok
+
+# Output: data/qcomnetsim_results.csv
+```
+
+### Cross-Simulator Validation
+
+Validate QComNetSim against SeQUeNCe:
+```bash
+# Run complete validation pipeline
+./run_validation.sh
+
+# Output: 
+#   data/sequence_results.csv
+#   data/comparison.csv
+#   data/plots/*.png
+```
+## Project Team
+
+- **Developer**: Fabrizio Diaz, Undergraduate CS Student, NTUST
+- **Direct Advisor**: Pankaj Kumar, PhD Scholar, NTUST
+- **Faculty Advisor**: Prof. Binayak Kar, Assistant Professor, NTUST
+- **Lab**: Quantum Research Lab
+
+## Acknowledgments
+
+This project is part of a two-semester capstone project at National Taiwan University of Science and Technology (NTUST), where I am an exchange student from Taiwan-Paraguay Polytechnic University. 
+
+This work is conducted under the guidance of Binayak Kar and Pankaj Kumar at Quantum Research Lab, NTUST.
 
 ---
 
-## Technical Approach
-
-### Architecture
-- **Core Layer**: Quantum state representation using `ndarray` and `num-complex`
-- **Network Layer**: Nodes, channels, and topologies
-- **Protocol Layer**: Entanglement generation, swapping, QKD
-- **Simulation Engine**: Discrete-event scheduler
-- **Validation Engine**: Cross-simulator comparison framework
-
-### Technology Stack
-- **Language**: Rust (for performance and safety)
-- **Key Libraries**: `ndarray`, `num-complex`, `rayon` (parallelism)
-- **Interface**: CLI (Semester 1) → GUI (Semester 2)
-
----
-
-## Related Work & References
+##  References
 
 This project builds upon established research in quantum network simulation:
 
@@ -87,27 +138,6 @@ This project builds upon established research in quantum network simulation:
 4. **Other Quantum Network Simulators**:
    - QuNetSim: https://github.com/tqsd/QuNetSim
    - SimQN: https://github.com/ertuil/SimQN
-
-## Building & Running
-
-*Coming Soon...*
-
-## Project Team
-
-- **Developer**: Fabrizio Diaz, Undergraduate CS Student, NTUST
-- **Direct Advisor**: Pankaj Kumar, PhD Scholar, NTUST
-- **Faculty Advisor**: Prof. Binayak Kar, Assistant Professor, NTUST
-- **Lab**: Quantum Research Lab
-
-## License
-
-[To be determined]
-
-## Acknowledgments
-
-This project is part of a two-semester capstone project at National Taiwan University of Science and Technology (NTUST), where I am an exchange student from Taiwan-Paraguay Polytechnic University. 
-
-This work is conducted under the guidance of Binayak Kar and Pankaj Kumar at Quantum Research Lab, NTUST.
 
 ---
 
