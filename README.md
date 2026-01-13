@@ -3,7 +3,6 @@
 </div>
 
 > **Status**: Active Development - (Fall 2024)  
-> **First Target Completion**: December 24, 2024 
 
 A high-performance quantum network simulator written in Rust, designed for educational purposes and cross-simulator validation.
 
@@ -81,7 +80,7 @@ cargo build --release
 
 ### Running Simulations
 
-> **Note**: CLI and TOML configuration system is under development and testing. Current workflow uses example binaries:
+> **Note**: CLI and TOML configuration system is under testing. Temporary workflow uses example binaries:
 ```bash
 # Run Barrett-Kok protocol simulation
 cargo run --release --example two_node_barrett_kok
