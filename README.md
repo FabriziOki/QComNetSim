@@ -2,7 +2,7 @@
 <img src="assets/name.svg" alt="QComNetSim Logo" width="1000"/>
 </div>
 
-> **Status**: Active Development - (Fall 2024)  
+> **Status**: Active Development - (Spring 2026 — Capstone II)
 
 A high-performance quantum network simulator written in Rust, designed for educational purposes and cross-simulator validation.
 
@@ -29,12 +29,12 @@ QComNetSim aims to create a small-scale, educational quantum network simulator t
 - [x] TOML Configuration file support
 - [x] Basic CLI interface with CSV output
 
-### Semester 2 (Spring 2025)
-- [ ] Graphical user interface
-- [ ] Extended protocol support
-- [ ] Performance benchmarking suite
-- [ ] Comprehensive documentation
-- [ ] Advanced noise models
+### Capstone II (Spring 2026)
+- [ ] Multi-hop topology (3-node chain with routing and resource contention)
+- [ ] Configurable physics engine (PhysicsProfile trait, TOML-driven)
+- [ ] End-to-end benchmarks vs. SeQUeNCe (wall-clock, full protocol runs)
+- [ ] Validation engine documentation and metric alignment
+- [ ] Statistical rigor and paper narrative fixes
 
 ## Motivation
 

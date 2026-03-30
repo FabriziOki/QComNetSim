@@ -1,3 +1,9 @@
 /target/**
 /data/**
 TODO.md
+CLAUDE.md
+
+# AgentOps session artifacts
+.agents/
+.claude
+_bmad
