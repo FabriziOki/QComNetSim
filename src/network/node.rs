@@ -50,6 +50,7 @@ impl StoredPair {
 }
 
 /// A quantum network node (processor or repeater)
+#[derive(Clone)]
 pub struct QuantumNode {
     /// Unique identifier for this node
     pub id: usize,

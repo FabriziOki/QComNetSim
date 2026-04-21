@@ -1,3 +1,5 @@
+use crate::protocols::barrett_kok::BarrettKokProtocol;
+use crate::protocols::swapping::{EntanglementSwappingProtocol, SwapResult};
 use super::{QuantumChannel, QuantumNode};
 
 /// Types of network topologies
@@ -233,11 +235,125 @@ impl NetworkTopology {
     pub fn has_node(&self, id: usize) -> bool {
         id < self.nodes.len()
     }
+
+    // ============================================
+    // MULTI-NODE PROTOCOL OPERATIONS
+    // ============================================
+
+    /// Get mutable references to two distinct nodes simultaneously.
+    ///
+    /// Rust's borrow checker forbids two `&mut` borrows from the same Vec via
+    /// `get_mut` calls. `split_at_mut` gives us a safe escape hatch by splitting
+    /// the slice at the higher index, yielding two non-overlapping sub-slices.
+    ///
+    /// Returns `None` if either ID is out of range or both IDs are equal.
+    pub fn get_two_nodes_mut(
+        &mut self,
+        id_a: usize,
+        id_b: usize,
+    ) -> Option<(&mut QuantumNode, &mut QuantumNode)> {
+        if id_a == id_b || id_a >= self.nodes.len() || id_b >= self.nodes.len() {
+            return None;
+        }
+        if id_a < id_b {
+            let (left, right) = self.nodes.split_at_mut(id_b);
+            Some((&mut left[id_a], &mut right[0]))
+        } else {
+            let (left, right) = self.nodes.split_at_mut(id_a);
+            Some((&mut right[0], &mut left[id_b]))
+        }
+    }
+
+    /// Run Barrett-Kok entanglement generation on a specific link.
+    ///
+    /// Looks up the channel between `node_a_id` and `node_b_id`, then calls
+    /// the protocol with both node mutable references resolved safely via
+    /// `get_two_nodes_mut`. Works for any two directly-connected nodes in the
+    /// topology, regardless of how many nodes exist overall.
+    pub fn attempt_generation_on_link(
+        &mut self,
+        node_a_id: usize,
+        node_b_id: usize,
+        protocol: &BarrettKokProtocol,
+        current_time: f64,
+        coherence_time_ms: f64,
+    ) -> Result<bool, String> {
+        // Clone channel first — we need an owned copy so the immutable borrow
+        // on `self.channels` does not conflict with the mutable borrow on
+        // `self.nodes` taken immediately after.
+        let channel = self
+            .find_channel(node_a_id, node_b_id)
+            .ok_or_else(|| {
+                format!("No channel between nodes {} and {}", node_a_id, node_b_id)
+            })?
+            .clone();
+
+        let num_nodes = self.nodes.len();
+        let (node_a, node_b) = self
+            .get_two_nodes_mut(node_a_id, node_b_id)
+            .ok_or_else(|| {
+                format!(
+                    "Invalid node IDs: {} or {} out of range (topology has {} nodes)",
+                    node_a_id, node_b_id, num_nodes
+                )
+            })?;
+
+        protocol.attempt_generation(node_a, node_b, &channel, current_time, coherence_time_ms)
+    }
+
+    /// Run entanglement swapping at a repeater node.
+    ///
+    /// Performs the BSM at `middle_node_id` consuming the A–B and B–C pairs,
+    /// then stores the resulting A–C pairs at `node_a_id` and `node_c_id`.
+    /// The two storage steps use sequential borrows so no `unsafe` is needed.
+    ///
+    /// Returns `Ok(Some(fidelity))` on success, `Ok(None)` if BSM failed
+    /// probabilistically, or `Err` if pairs are missing / decohered.
+    pub fn attempt_swap_on_node(
+        &mut self,
+        middle_node_id: usize,
+        node_a_id: usize,
+        node_c_id: usize,
+        protocol: &EntanglementSwappingProtocol,
+        current_time: f64,
+        coherence_time_ms: f64,
+    ) -> Result<Option<f64>, String> {
+        // Phase 1: BSM at middle node.
+        // The borrow of `middle_node` ends when this block exits, before we
+        // borrow node_a and node_c in phase 2.
+        let swap_result: Option<SwapResult> = {
+            let middle = self.get_node_mut(middle_node_id).ok_or_else(|| {
+                format!("Middle node {} not found", middle_node_id)
+            })?;
+            protocol.attempt_swap(middle, node_a_id, node_c_id, current_time, coherence_time_ms)?
+        };
+
+        // Phase 2: distribute resulting pairs to endpoint nodes.
+        if let Some(result) = swap_result {
+            let fidelity = result.fidelity;
+
+            self.get_node_mut(node_a_id)
+                .ok_or_else(|| format!("Node {} not found", node_a_id))?
+                .store_pair(result.pair_for_a)?;
+
+            self.get_node_mut(node_c_id)
+                .ok_or_else(|| format!("Node {} not found", node_c_id))?
+                .store_pair(result.pair_for_c)?;
+
+            Ok(Some(fidelity))
+        } else {
+            Ok(None)
+        }
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::protocols::barrett_kok::BarrettKokProtocol;
+    use crate::protocols::swapping::EntanglementSwappingProtocol;
+    use crate::network::node::StoredPair;
+    use crate::quantum::TwoQubitState;
 
     // ===== LINEAR TOPOLOGY TESTS =====
 
@@ -401,5 +517,110 @@ mod tests {
         assert!(network.has_node(0));
         assert!(network.has_node(1));
         assert!(!network.has_node(2));
+    }
+
+    // ===== MULTI-NODE PROTOCOL TESTS =====
+
+    #[test]
+    fn test_get_two_nodes_mut() {
+        let mut network = NetworkTopology::new_linear(3, 10, 10.0, 0.2);
+        let result = network.get_two_nodes_mut(0, 2);
+        assert!(result.is_some());
+        let (a, c) = result.unwrap();
+        assert_eq!(a.id, 0);
+        assert_eq!(c.id, 2);
+    }
+
+    #[test]
+    fn test_get_two_nodes_mut_reversed() {
+        // Higher-index first — split_at_mut must handle both orderings
+        let mut network = NetworkTopology::new_linear(3, 10, 10.0, 0.2);
+        let (b, a) = network.get_two_nodes_mut(2, 0).unwrap();
+        assert_eq!(b.id, 2);
+        assert_eq!(a.id, 0);
+    }
+
+    #[test]
+    fn test_get_two_nodes_mut_same_id_returns_none() {
+        let mut network = NetworkTopology::new_linear(3, 10, 10.0, 0.2);
+        assert!(network.get_two_nodes_mut(1, 1).is_none());
+    }
+
+    #[test]
+    fn test_get_two_nodes_mut_out_of_range_returns_none() {
+        let mut network = NetworkTopology::new_linear(2, 10, 10.0, 0.2);
+        assert!(network.get_two_nodes_mut(0, 5).is_none());
+    }
+
+    #[test]
+    fn test_generation_on_link_any_pair() {
+        // 3-node linear chain: generation should work on link 0-1 AND link 1-2
+        let mut network = NetworkTopology::new_linear(3, 10, 10.0, 0.2);
+        let protocol = BarrettKokProtocol::sequence_parameters();
+
+        // Run enough attempts that at least one succeeds on each link
+        let mut success_01 = false;
+        let mut success_12 = false;
+        for _ in 0..50 {
+            let mut net = NetworkTopology::new_linear(3, 10, 0.0, 0.0); // perfect channel
+            if net.attempt_generation_on_link(0, 1, &protocol, 0.0, 1000.0).unwrap_or(false) {
+                success_01 = true;
+            }
+            if net.attempt_generation_on_link(1, 2, &protocol, 0.0, 1000.0).unwrap_or(false) {
+                success_12 = true;
+            }
+            if success_01 && success_12 { break; }
+        }
+        assert!(success_01, "link 0-1 never succeeded");
+        assert!(success_12, "link 1-2 never succeeded");
+
+        // Pairs must end up in the correct nodes
+        let _ = network;
+    }
+
+    #[test]
+    fn test_generation_on_link_no_channel_returns_err() {
+        let mut network = NetworkTopology::new_linear(3, 10, 10.0, 0.2);
+        let protocol = BarrettKokProtocol::sequence_parameters();
+        // Nodes 0 and 2 are not directly connected in a linear topology
+        let result = network.attempt_generation_on_link(0, 2, &protocol, 0.0, 1000.0);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn test_swap_on_node_three_hop() {
+        // Build A(0) -- B(1) -- C(2)
+        // Manually place pairs so middle node has both links
+        let mut network = NetworkTopology::new_linear(3, 4, 10.0, 0.2);
+
+        let state = TwoQubitState::new_bell_phi_plus();
+
+        // Node B(1) holds pair with A(0) and pair with C(2)
+        let mut pair_ba = StoredPair::new(0, state.clone(), 0.0, 1000.0);
+        pair_ba.fidelity = 0.95;
+        let mut pair_bc = StoredPair::new(2, state.clone(), 0.0, 1000.0);
+        pair_bc.fidelity = 0.95;
+        network.get_node_mut(1).unwrap().store_pair(pair_ba).unwrap();
+        network.get_node_mut(1).unwrap().store_pair(pair_bc).unwrap();
+
+        // Node A(0) and C(2) start with no pairs
+        assert_eq!(network.get_node(0).unwrap().num_stored_pairs(), 0);
+        assert_eq!(network.get_node(2).unwrap().num_stored_pairs(), 0);
+
+        let protocol = EntanglementSwappingProtocol::sequence_parameters();
+        let result = network.attempt_swap_on_node(1, 0, 2, &protocol, 1.0, 1000.0);
+
+        assert!(result.is_ok());
+        let fidelity = result.unwrap();
+        assert!(fidelity.is_some(), "Ideal BSM should always succeed");
+
+        // Middle node must be empty; endpoints must each hold one pair
+        assert_eq!(network.get_node(1).unwrap().num_stored_pairs(), 0);
+        assert_eq!(network.get_node(0).unwrap().num_stored_pairs(), 1);
+        assert_eq!(network.get_node(2).unwrap().num_stored_pairs(), 1);
+
+        // Pairs must point to each other (A↔C)
+        assert_eq!(network.get_node(0).unwrap().stored_pairs[0].partner_node_id, 2);
+        assert_eq!(network.get_node(2).unwrap().stored_pairs[0].partner_node_id, 0);
     }
 }

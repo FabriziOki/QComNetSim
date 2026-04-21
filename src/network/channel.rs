@@ -1,4 +1,5 @@
 /// A quantum channel connecting two nodes
+#[derive(Clone)]
 pub struct QuantumChannel {
     /// ID of the first node
     pub node_a: usize,
