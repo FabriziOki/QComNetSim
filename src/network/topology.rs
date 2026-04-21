@@ -622,5 +622,10 @@ mod tests {
         // Pairs must point to each other (A↔C)
         assert_eq!(network.get_node(0).unwrap().stored_pairs[0].partner_node_id, 2);
         assert_eq!(network.get_node(2).unwrap().stored_pairs[0].partner_node_id, 0);
+
+        // Provenance: both endpoint pairs must record node 1 as the repeater
+        assert!(network.get_node(0).unwrap().stored_pairs[0].is_swapped());
+        assert!(network.get_node(2).unwrap().stored_pairs[0].is_swapped());
+        assert_eq!(network.get_node(0).unwrap().stored_pairs[0].origin.swap_count(), 1);
     }
 }

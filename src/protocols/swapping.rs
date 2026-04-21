@@ -1,4 +1,4 @@
-use crate::network::node::{QuantumNode, StoredPair};
+use crate::network::node::{LinkOrigin, QuantumNode, StoredPair};
 use crate::quantum::TwoQubitState;
 use rand::Rng;
 
@@ -113,16 +113,27 @@ impl EntanglementSwappingProtocol {
         // scaled by gate_fidelity to account for local operation errors.
         let f_out = self.theoretical_output_fidelity(pair_ab.fidelity, pair_bc.fidelity);
 
+        // Extend provenance: each new pair records the full chain of repeaters
+        // that performed BSMs to establish the A–C link.
+        let origin_for_a = pair_ab.origin.clone().extend(middle_node.id);
+        let origin_for_c = pair_bc.origin.clone().extend(middle_node.id);
+
         let swapped_state = TwoQubitState::new_bell_phi_plus();
 
-        let mut pair_for_a = StoredPair::new(
+        let mut pair_for_a = StoredPair::new_swapped(
             node_c_id,
             swapped_state.clone(),
             current_time,
             coherence_time_ms,
+            origin_for_a,
         );
-        let mut pair_for_c =
-            StoredPair::new(node_a_id, swapped_state, current_time, coherence_time_ms);
+        let mut pair_for_c = StoredPair::new_swapped(
+            node_a_id,
+            swapped_state,
+            current_time,
+            coherence_time_ms,
+            origin_for_c,
+        );
 
         pair_for_a.fidelity = f_out;
         pair_for_c.fidelity = f_out;
@@ -185,6 +196,57 @@ mod tests {
 
         // Middle node memory must be empty after swap
         assert_eq!(node_b.num_stored_pairs(), 0);
+
+        // Provenance: both pairs should record node B (id=1) as the repeater
+        assert!(swap.pair_for_a.is_swapped());
+        assert!(swap.pair_for_c.is_swapped());
+        assert_eq!(swap.pair_for_a.origin.swap_count(), 1);
+        assert_eq!(swap.pair_for_c.origin.swap_count(), 1);
+        match &swap.pair_for_a.origin {
+            LinkOrigin::Swapped { repeaters } => assert_eq!(repeaters, &[1]),
+            _ => panic!("Expected Swapped origin"),
+        }
+    }
+
+    #[test]
+    fn test_swap_provenance_chained() {
+        // Two-hop chain: A(0)–B(1)–C(2)–D(3)
+        // First swap at B produces A–C (1 repeater: B)
+        // Second swap at C produces A–D (2 repeaters: B, C)
+        let protocol = EntanglementSwappingProtocol::sequence_parameters();
+        let state = TwoQubitState::new_bell_phi_plus();
+
+        // --- First swap at B (id=1): consumes A-B and B-C ---
+        let mut node_b = QuantumNode::new(1, 4);
+        let mut pair_ab = StoredPair::new(0, state.clone(), 0.0, 1000.0);
+        pair_ab.fidelity = 0.95;
+        let mut pair_bc = StoredPair::new(2, state.clone(), 0.0, 1000.0);
+        pair_bc.fidelity = 0.95;
+        node_b.store_pair(pair_ab).unwrap();
+        node_b.store_pair(pair_bc).unwrap();
+
+        let result_b = protocol.attempt_swap(&mut node_b, 0, 2, 1.0, 1000.0)
+            .unwrap().unwrap();
+        // pair_for_a has origin extended by B(1)
+        assert_eq!(result_b.pair_for_a.origin.swap_count(), 1);
+
+        // --- Second swap at C (id=2): consumes A-C (from first swap) and C-D ---
+        let mut node_c = QuantumNode::new(2, 4);
+        // The A-C pair as seen from C's side is result_b.pair_for_c (partner=A, origin extended by B)
+        node_c.store_pair(result_b.pair_for_c).unwrap();
+        let mut pair_cd = StoredPair::new(3, state.clone(), 0.0, 1000.0);
+        pair_cd.fidelity = 0.95;
+        node_c.store_pair(pair_cd).unwrap();
+
+        let result_c = protocol.attempt_swap(&mut node_c, 0, 3, 2.0, 1000.0)
+            .unwrap().unwrap();
+
+        // A–D pair must show 2 repeaters (B then C)
+        assert_eq!(result_c.pair_for_a.origin.swap_count(), 2);
+        match &result_c.pair_for_a.origin {
+            LinkOrigin::Swapped { repeaters } => assert_eq!(repeaters, &[1, 2]),
+            _ => panic!("Expected Swapped origin"),
+        }
     }
 
     #[test]

@@ -105,8 +105,9 @@ mod tests {
     fn test_channel_loss() {
         let mut node_a = QuantumNode::new(0, 10);
         let mut node_b = QuantumNode::new(1, 10);
-        // Very lossy channel
-        let channel = QuantumChannel::new(0, 1, 100.0, 0.5);
+        // Lossy channel: 20 km at 0.2 dB/km → p ≈ 0.40, so both successes and
+        // failures are expected within 100 attempts.
+        let channel = QuantumChannel::new(0, 1, 20.0, 0.2);
 
         let mut successes = 0;
         let attempts = 100;

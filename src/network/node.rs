@@ -1,6 +1,41 @@
 use crate::quantum::noise::fidelity_after_decoherence;
 use crate::quantum::TwoQubitState;
 
+/// How this entangled pair was established
+#[derive(Debug, Clone, PartialEq)]
+pub enum LinkOrigin {
+    /// Directly generated between two adjacent nodes (e.g., Barrett-Kok)
+    Direct,
+    /// Produced by entanglement swapping; records the repeater node IDs
+    /// that performed BSMs to extend the link, in order from this node's
+    /// side toward the partner.
+    Swapped { repeaters: Vec<usize> },
+}
+
+impl LinkOrigin {
+    /// Number of swaps performed to establish this link (0 for direct links)
+    pub fn swap_count(&self) -> usize {
+        match self {
+            LinkOrigin::Direct => 0,
+            LinkOrigin::Swapped { repeaters } => repeaters.len(),
+        }
+    }
+
+    /// Merge two origins when a new swap extends the link.
+    ///
+    /// `self` is the origin as seen from this node's side; `middle_id` is the
+    /// repeater performing the current BSM.  Returns the combined origin for
+    /// the newly created end-to-end pair.
+    pub fn extend(self, middle_id: usize) -> LinkOrigin {
+        let mut repeaters = match self {
+            LinkOrigin::Direct => vec![],
+            LinkOrigin::Swapped { repeaters } => repeaters,
+        };
+        repeaters.push(middle_id);
+        LinkOrigin::Swapped { repeaters }
+    }
+}
+
 /// A quantum entangled pair stored in node memory
 #[derive(Clone)]
 pub struct StoredPair {
@@ -14,10 +49,12 @@ pub struct StoredPair {
     pub fidelity: f64,
     /// Coherence time in milliseconds
     pub coherence_time_ms: f64,
+    /// How this link was established (direct generation vs. swapping path)
+    pub origin: LinkOrigin,
 }
 
 impl StoredPair {
-    /// Create a new stored entangled pair
+    /// Create a directly-generated entangled pair
     pub fn new(
         partner_node_id: usize,
         state: TwoQubitState,
@@ -34,7 +71,34 @@ impl StoredPair {
             creation_time,
             fidelity,
             coherence_time_ms,
+            origin: LinkOrigin::Direct,
         }
+    }
+
+    /// Create a swapped pair with explicit origin provenance
+    pub fn new_swapped(
+        partner_node_id: usize,
+        state: TwoQubitState,
+        creation_time: f64,
+        coherence_time_ms: f64,
+        origin: LinkOrigin,
+    ) -> Self {
+        let ideal_bell = TwoQubitState::new_bell_phi_plus();
+        let fidelity = state.fidelity(&ideal_bell);
+
+        StoredPair {
+            partner_node_id,
+            state,
+            creation_time,
+            fidelity,
+            coherence_time_ms,
+            origin,
+        }
+    }
+
+    /// Returns true if this pair was produced by entanglement swapping
+    pub fn is_swapped(&self) -> bool {
+        self.origin.swap_count() > 0
     }
 
     /// Update fidelity based on current time (apply decoherence)
