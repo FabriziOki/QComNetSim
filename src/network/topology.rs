@@ -305,7 +305,13 @@ impl NetworkTopology {
     ///
     /// Performs the BSM at `middle_node_id` consuming the A–B and B–C pairs,
     /// then stores the resulting A–C pairs at `node_a_id` and `node_c_id`.
-    /// The two storage steps use sequential borrows so no `unsafe` is needed.
+    ///
+    /// **Mirror-pair cleanup**: When the BSM at the middle node measures its
+    /// two qubits, the corresponding qubits at nodes A and C lose their
+    /// previous entanglement with the middle node. This method therefore
+    /// removes `pair(middle)` from both endpoint nodes before storing the
+    /// new swapped pair. Without this, "orphaned" pairs accumulate in endpoint
+    /// memories over repeated rounds and eventually block all new generation.
     ///
     /// Returns `Ok(Some(fidelity))` on success, `Ok(None)` if BSM failed
     /// probabilistically, or `Err` if pairs are missing / decohered.
@@ -319,16 +325,32 @@ impl NetworkTopology {
         coherence_time_ms: f64,
     ) -> Result<Option<f64>, String> {
         // Phase 1: BSM at middle node.
-        // The borrow of `middle_node` ends when this block exits, before we
-        // borrow node_a and node_c in phase 2.
-        let swap_result: Option<SwapResult> = {
+        // Do NOT use `?` here — we need to perform mirror cleanup (phase 2)
+        // even when the BSM fails, since the middle node's pairs are consumed
+        // by the measurement regardless of outcome.
+        let swap_result = {
             let middle = self.get_node_mut(middle_node_id).ok_or_else(|| {
                 format!("Middle node {} not found", middle_node_id)
             })?;
-            protocol.attempt_swap(middle, node_a_id, node_c_id, current_time, coherence_time_ms)?
+            protocol.attempt_swap(middle, node_a_id, node_c_id, current_time, coherence_time_ms)
         };
 
-        // Phase 2: distribute resulting pairs to endpoint nodes.
+        // Phase 2: remove the "mirror" pairs from endpoint nodes.
+        // The qubits at A and C that were entangled with the middle node have
+        // now been measured (or invalidated); keeping them would leave orphaned
+        // entries that block future generation on those links.
+        // This is a no-op when the pairs were missing (Err from phase 1).
+        if let Some(node_a) = self.get_node_mut(node_a_id) {
+            node_a.remove_pair_with(middle_node_id);
+        }
+        if let Some(node_c) = self.get_node_mut(node_c_id) {
+            node_c.remove_pair_with(middle_node_id);
+        }
+
+        // Phase 3: propagate any Err from the BSM (e.g. decoherence threshold).
+        let swap_result = swap_result?;
+
+        // Phase 4: if BSM succeeded, store the new end-to-end pairs.
         if let Some(result) = swap_result {
             let fidelity = result.fidelity;
 

@@ -162,6 +162,10 @@ pub struct Simulation {
     pub stats: SimulationStats,
     /// Node IDs from source to destination, e.g. [0, 1, 2]
     path: Vec<usize>,
+    /// Repeater node IDs that already have a swap event in the queue.
+    /// Prevents duplicate swaps being scheduled when check_and_schedule_swaps
+    /// is called multiple times in the same simulation tick.
+    pending_swaps: std::collections::HashSet<usize>,
 }
 
 impl Simulation {
@@ -181,6 +185,7 @@ impl Simulation {
             config,
             stats: SimulationStats::default(),
             path,
+            pending_swaps: std::collections::HashSet::new(),
         }
     }
 
@@ -290,18 +295,31 @@ impl Simulation {
             None => return,
         };
 
-        // Guard: pairs may have been consumed by decoherence or a duplicate
-        // swap event since this event was scheduled.
-        {
-            let node = match self.topology.get_node(middle) {
-                Some(n) => n,
-                None => return,
-            };
-            if node.find_pair_with(left).is_none() || node.find_pair_with(right).is_none() {
+        // This event is now in-flight; clear the pending flag so
+        // check_and_schedule_swaps can queue a new one after this resolves.
+        self.pending_swaps.remove(&middle);
+
+        // Guard: check which pairs are present before consuming anything.
+        // Only reschedule generation for the link that is actually missing —
+        // rescheduling an already-present link creates duplicate pairs and
+        // cascading events.
+        let has_left = self
+            .topology
+            .get_node(middle)
+            .map_or(false, |n| n.find_pair_with(left).is_some());
+        let has_right = self
+            .topology
+            .get_node(middle)
+            .map_or(false, |n| n.find_pair_with(right).is_some());
+
+        if !has_left || !has_right {
+            if !has_left {
                 self.schedule_generation(left, middle, event.time + self.config.retry_interval_ms);
-                self.schedule_generation(middle, right, event.time + self.config.retry_interval_ms);
-                return;
             }
+            if !has_right {
+                self.schedule_generation(middle, right, event.time + self.config.retry_interval_ms);
+            }
+            return;
         }
 
         self.stats.swap_attempts += 1;
@@ -385,24 +403,69 @@ impl Simulation {
     // HELPERS
     // ============================================================
 
-    /// For every repeater node in the path, check if it holds both required
-    /// adjacent pairs. If so, schedule a swap after the classical delay.
+    /// For every repeater node in the path, check if it holds one pair whose
+    /// partner lies LEFT of it in the path and one pair whose partner lies
+    /// RIGHT of it in the path. If so, schedule a swap after the classical
+    /// communication delay.
     ///
-    /// For a 3-node path [A, B, C] this fires when B has pairs with A and C.
+    /// This position-based check is correct for multi-hop chains: after an
+    /// intermediate swap at node B in [A, B, C, D], node C will hold a pair
+    /// with A (not B). Looking up A's position (< C's position) correctly
+    /// identifies it as the "left" partner without assuming adjacency.
     fn check_and_schedule_swaps(&mut self, current_time: f64) {
+        // Build position map once: node_id → index in path
+        let position: std::collections::HashMap<usize, usize> = self
+            .path
+            .iter()
+            .enumerate()
+            .map(|(i, &id)| (id, i))
+            .collect();
+
         for i in 1..(self.path.len() - 1) {
-            let left = self.path[i - 1];
             let middle = self.path[i];
-            let right = self.path[i + 1];
 
-            let ready = self
-                .topology
-                .get_node(middle)
-                .map_or(false, |n| {
-                    n.find_pair_with(left).is_some() && n.find_pair_with(right).is_some()
-                });
+            // Extract the actual partner IDs while the node is borrowed,
+            // then drop the borrow before scheduling (which needs &mut self).
+            let (left_partner, right_partner) = {
+                let node = match self.topology.get_node(middle) {
+                    Some(n) => n,
+                    None => continue,
+                };
 
-            if ready {
+                let left = node
+                    .stored_pairs
+                    .iter()
+                    .find(|p| {
+                        position
+                            .get(&p.partner_node_id)
+                            .map_or(false, |&pos| pos < i)
+                    })
+                    .map(|p| p.partner_node_id);
+
+                let right = node
+                    .stored_pairs
+                    .iter()
+                    .find(|p| {
+                        position
+                            .get(&p.partner_node_id)
+                            .map_or(false, |&pos| pos > i)
+                    })
+                    .map(|p| p.partner_node_id);
+
+                (left, right)
+            }; // node borrow ends here
+
+            if let (Some(left), Some(right)) = (left_partner, right_partner) {
+                // Skip if this node already has a swap event in the queue.
+                // Without this guard, multiple successful generation events
+                // at the same time each call check_and_schedule_swaps and
+                // all see the same ready node, flooding the queue with
+                // duplicate swap events.
+                if self.pending_swaps.contains(&middle) {
+                    continue;
+                }
+                self.pending_swaps.insert(middle);
+
                 let mut swap_event = Event::new(
                     current_time + self.config.classical_delay_ms,
                     EventType::EntanglementSwapping,
@@ -569,6 +632,120 @@ mod tests {
         sim.run();
         // Should not deliver 1M pairs in 1ms on a very lossy channel
         assert!(sim.stats.pairs_delivered < 1_000_000);
+    }
+
+    #[test]
+    fn test_four_node_delivers_target_pairs() {
+        // Path [0,1,2,3]: two repeaters, two swaps per delivered pair.
+        // Uses routing to compute the path.
+        use crate::network::find_shortest_path;
+        let topology = NetworkTopology::new_linear(4, 8, 0.0, 0.0);
+        let path = find_shortest_path(&topology, 0, 3).unwrap();
+        assert_eq!(path, vec![0, 1, 2, 3]);
+
+        let mut sim = Simulation::new(
+            topology,
+            BarrettKokProtocol::sequence_parameters(),
+            EntanglementSwappingProtocol::sequence_parameters(),
+            SimulationConfig {
+                target_pairs: 5,
+                max_time_ms: 1_000_000.0,
+                ..Default::default()
+            },
+            path,
+        );
+        sim.run();
+        assert_eq!(sim.stats.pairs_delivered, 5);
+    }
+
+    #[test]
+    fn test_four_node_requires_more_swaps_than_three_node() {
+        use crate::network::find_shortest_path;
+
+        let topology3 = NetworkTopology::new_linear(3, 8, 0.0, 0.0);
+        let path3 = find_shortest_path(&topology3, 0, 2).unwrap();
+        let mut sim3 = Simulation::new(
+            topology3,
+            BarrettKokProtocol::sequence_parameters(),
+            EntanglementSwappingProtocol::sequence_parameters(),
+            SimulationConfig { target_pairs: 20, max_time_ms: 1_000_000.0, ..Default::default() },
+            path3,
+        );
+        sim3.run();
+
+        let topology4 = NetworkTopology::new_linear(4, 8, 0.0, 0.0);
+        let path4 = find_shortest_path(&topology4, 0, 3).unwrap();
+        let mut sim4 = Simulation::new(
+            topology4,
+            BarrettKokProtocol::sequence_parameters(),
+            EntanglementSwappingProtocol::sequence_parameters(),
+            SimulationConfig { target_pairs: 20, max_time_ms: 1_000_000.0, ..Default::default() },
+            path4,
+        );
+        sim4.run();
+
+        // 4-node chain needs 2 swaps per pair; 3-node needs 1
+        assert!(
+            sim4.stats.swap_successes > sim3.stats.swap_successes,
+            "4-node ({} swaps) should need more swaps than 3-node ({} swaps)",
+            sim4.stats.swap_successes,
+            sim3.stats.swap_successes
+        );
+    }
+
+    #[test]
+    fn test_four_node_fidelity_lower_than_three_node() {
+        use crate::network::find_shortest_path;
+
+        let make_sim = |n: usize| {
+            let topology = NetworkTopology::new_linear(n, 8, 0.0, 0.0);
+            let path = find_shortest_path(&topology, 0, n - 1).unwrap();
+            Simulation::new(
+                topology,
+                BarrettKokProtocol::sequence_parameters(),
+                EntanglementSwappingProtocol::sequence_parameters(),
+                SimulationConfig { target_pairs: 50, max_time_ms: 1_000_000.0, ..Default::default() },
+                path,
+            )
+        };
+
+        let mut sim3 = make_sim(3);
+        sim3.run();
+        let mut sim4 = make_sim(4);
+        sim4.run();
+
+        let f3 = sim3.stats.mean_fidelity().unwrap();
+        let f4 = sim4.stats.mean_fidelity().unwrap();
+        assert!(
+            f4 < f3,
+            "4-node fidelity ({:.4}) should be lower than 3-node ({:.4})",
+            f4, f3
+        );
+    }
+
+    #[test]
+    fn test_routing_path_used_correctly() {
+        // Verify that the path BFS computes is actually what drives the simulation.
+        // Use a star topology: source=1, dest=2, must go through center (node 0).
+        use crate::network::find_shortest_path;
+        use crate::network::TopologyType;
+
+        let topology = NetworkTopology::new_star(3, 8, 0.0, 0.0);
+        // In star(3): node 0 = center, nodes 1,2 = periphery
+        // Channel 0-1 and 0-2 exist; no direct 1-2 channel.
+        let path = find_shortest_path(&topology, 1, 2).unwrap();
+        assert_eq!(path, vec![1, 0, 2]); // must route through center
+
+        let mut sim = Simulation::new(
+            topology,
+            BarrettKokProtocol::sequence_parameters(),
+            EntanglementSwappingProtocol::sequence_parameters(),
+            SimulationConfig { target_pairs: 5, max_time_ms: 1_000_000.0, ..Default::default() },
+            path,
+        );
+        sim.run();
+        assert_eq!(sim.stats.pairs_delivered, 5);
+        assert!(sim.stats.swap_successes >= 5); // one swap per delivered pair
     }
 
     #[test]
