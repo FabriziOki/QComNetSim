@@ -1,4 +1,5 @@
 use crate::network::node::{LinkOrigin, QuantumNode, StoredPair};
+use crate::physics::PhysicsProfile;
 use crate::quantum::TwoQubitState;
 use rand::Rng;
 
@@ -45,6 +46,14 @@ impl EntanglementSwappingProtocol {
         EntanglementSwappingProtocol {
             bsm_efficiency: 0.90,
             gate_fidelity: 0.98,
+        }
+    }
+
+    /// Instantiate from a hardware `PhysicsProfile`.
+    pub fn from_profile(profile: &PhysicsProfile) -> Self {
+        EntanglementSwappingProtocol {
+            bsm_efficiency: profile.swap_bsm_efficiency,
+            gate_fidelity: profile.gate_fidelity,
         }
     }
 

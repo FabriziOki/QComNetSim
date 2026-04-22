@@ -12,12 +12,17 @@ use qcomnetsim::network::{find_shortest_path, NetworkTopology};
 use qcomnetsim::protocols::barrett_kok::BarrettKokProtocol;
 use qcomnetsim::protocols::swapping::EntanglementSwappingProtocol;
 use qcomnetsim::simulation::{Simulation, SimulationConfig};
+use qcomnetsim::PhysicsProfile;
 
 fn main() {
     println!("QComNetSim — 3-node linear repeater chain\n");
 
+    // ── Physics profile ──────────────────────────────────────────
+    let profile = PhysicsProfile::erbium();
+    println!("Platform:   {}", profile.name);
+    println!("Coherence:  {} ms", profile.coherence_time_ms);
+
     // ── Topology ────────────────────────────────────────────────
-    // 3 nodes, 8 qubit memory slots each, 10 km links, 0.2 dB/km
     let distance_km = 10.0;
     let attenuation = 0.2;
     let memory_slots = 8;
@@ -36,35 +41,29 @@ fn main() {
         .expect("No path found between Alice and Carol");
 
     let repeaters: Vec<usize> = path[1..path.len() - 1].to_vec();
-    println!(
-        "Path:       {:?}  (repeaters: {:?})",
-        path, repeaters
-    );
+    println!("Path:       {:?}  (repeaters: {:?})", path, repeaters);
 
-    // ── Protocols ────────────────────────────────────────────────
-    let gen_protocol = BarrettKokProtocol::sequence_parameters();
-    let swap_protocol = EntanglementSwappingProtocol::sequence_parameters();
+    // ── Protocols (from profile) ─────────────────────────────────
+    let gen_protocol = BarrettKokProtocol::from_profile(&profile);
+    let swap_protocol = EntanglementSwappingProtocol::from_profile(&profile);
 
     println!(
-        "Generation: Barrett-Kok  (η={:.2}, p_dark={:.2e})",
+        "Generation: Barrett-Kok  (η_mem={:.2}, η_det={:.2}, p_dark={:.2e})",
+        gen_protocol.memory_efficiency,
         gen_protocol.detector_efficiency,
         gen_protocol.dark_count_rate,
     );
     println!(
-        "Swapping:   BSM  (η_bsm={:.2}, gate_f={:.2})",
+        "Swapping:   BSM  (η_bsm={:.2}, gate_f={:.3})",
         swap_protocol.bsm_efficiency,
         swap_protocol.gate_fidelity,
     );
 
-    // ── Simulation config ────────────────────────────────────────
+    // ── Simulation config (coherence from profile) ───────────────
     let config = SimulationConfig {
         target_pairs: 100,
-        coherence_time_ms: 1_000.0,
-        retry_interval_ms: 0.1,
-        classical_delay_ms: 0.05,
-        fidelity_threshold: 0.5,
         max_time_ms: 500_000.0,
-        decoherence_check_interval_ms: 10.0,
+        ..SimulationConfig::from_profile(&profile)
     };
 
     println!(

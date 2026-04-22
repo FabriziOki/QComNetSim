@@ -1,4 +1,5 @@
 use crate::network::topology::NetworkTopology;
+use crate::physics::PhysicsProfile;
 use crate::protocols::barrett_kok::BarrettKokProtocol;
 use crate::protocols::swapping::EntanglementSwappingProtocol;
 use super::event::{Event, EventType};
@@ -37,6 +38,17 @@ impl Default for SimulationConfig {
             target_pairs: 100,
             max_time_ms: 100_000.0,
             decoherence_check_interval_ms: 10.0,
+        }
+    }
+}
+
+impl SimulationConfig {
+    /// Build a config seeded from a `PhysicsProfile`, with all other
+    /// parameters left at their defaults.
+    pub fn from_profile(profile: &PhysicsProfile) -> Self {
+        SimulationConfig {
+            coherence_time_ms: profile.coherence_time_ms,
+            ..Default::default()
         }
     }
 }

@@ -1,5 +1,6 @@
 use crate::network::node::StoredPair;
 use crate::network::{QuantumChannel, QuantumNode};
+use crate::physics::PhysicsProfile;
 use crate::quantum::TwoQubitState;
 use rand::Rng;
 
@@ -10,6 +11,9 @@ use rand::Rng;
 /// - Midpoint BSM (Bell State Measurement)
 /// - Detector clicks signal success
 pub struct BarrettKokProtocol {
+    /// Photon-memory coupling efficiency (probability of successful emission)
+    pub memory_efficiency: f64,
+
     /// BSM (beam splitter) success rate (0.5 for single-atom, 1.0 for ideal)
     pub bsm_efficiency: f64,
 
@@ -27,6 +31,7 @@ impl BarrettKokProtocol {
     /// Create protocol matching SeQUeNCe parameters
     pub fn sequence_parameters() -> Self {
         BarrettKokProtocol {
+            memory_efficiency: 0.90,   // SeQUeNCe memory parameter
             bsm_efficiency: 0.5,       // Single-atom BSM
             detector_efficiency: 0.90, // From SeQUeNCe
             dark_count_rate: 0.0,      // SeQUeNCe doesn't model this
@@ -37,10 +42,22 @@ impl BarrettKokProtocol {
     /// Create realistic protocol (QComNetSim)
     pub fn realistic() -> Self {
         BarrettKokProtocol {
+            memory_efficiency: 0.90,
             bsm_efficiency: 0.5,
             detector_efficiency: 0.90,
             dark_count_rate: 0.01, // 1% dark counts (realistic)
             initial_fidelity: 0.95,
+        }
+    }
+
+    /// Instantiate from a hardware `PhysicsProfile`.
+    pub fn from_profile(profile: &PhysicsProfile) -> Self {
+        BarrettKokProtocol {
+            memory_efficiency: profile.memory_efficiency,
+            bsm_efficiency: profile.generation_bsm_efficiency,
+            detector_efficiency: profile.detector_efficiency,
+            dark_count_rate: profile.dark_count_rate,
+            initial_fidelity: profile.initial_fidelity,
         }
     }
 
@@ -65,13 +82,12 @@ impl BarrettKokProtocol {
 
         // Match SeQUeNCe's complete model:
         let transmission_prob = channel.success_probability();
-        let memory_efficiency = 0.9; // From SeQUeNCe Memory parameter
 
         // Step 1: Memory emission (both nodes must emit successfully)
-        if rng.random::<f64>() >= memory_efficiency {
+        if rng.random::<f64>() >= self.memory_efficiency {
             return Ok(false); // Node A emission failed
         }
-        if rng.random::<f64>() >= memory_efficiency {
+        if rng.random::<f64>() >= self.memory_efficiency {
             return Ok(false); // Node B emission failed
         }
 
@@ -116,18 +132,18 @@ impl BarrettKokProtocol {
         Ok(true)
     }
 
-    /// Calculate theoretical success probability
+    /// Calculate theoretical success probability per attempt.
+    ///
+    /// P = memory_efficiency² × transmission² × bsm_efficiency × detector_efficiency²
     pub fn theoretical_success_rate(&self, channel: &QuantumChannel) -> f64 {
         let p_trans = channel.success_probability();
-
-        // Both photons arrive × BSM works × both detectors click
-        let p_success = p_trans
+        self.memory_efficiency
+            * self.memory_efficiency
+            * p_trans
             * p_trans
             * self.bsm_efficiency
             * self.detector_efficiency
-            * self.detector_efficiency;
-
-        p_success
+            * self.detector_efficiency
     }
 }
 
