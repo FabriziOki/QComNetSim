@@ -17,7 +17,8 @@ import sys
 from pathlib import Path
 
 # Allow running as a script from the project root.
-sys.path.insert(0, str(Path(__file__).parents[2]))
+# parents[1] = src/  — where the `validation` package lives.
+sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from validation import config_translator, metric_aligner, results_collector
 from validation.reporter import csv_writer, plot_generator
@@ -69,8 +70,14 @@ def main() -> None:
     for runner in runners:
         for seed in params["seeds"]:
             print(f"  [{runner.name()}] seed={seed} ...", flush=True)
-            rows = runner.run(params, seed)
-            raw_rows.extend(rows)
+            try:
+                rows = runner.run(params, seed)
+                raw_rows.extend(rows)
+            except NotImplementedError as e:
+                print(f"  [SKIP] {runner.name()} is not yet implemented: {e}")
+                break  # skip all seeds for this runner
+            except Exception as e:
+                print(f"  [ERROR] {runner.name()} seed={seed} failed: {e}")
 
     # 4. Align metrics
     aligned = metric_aligner.align(raw_rows)
@@ -79,6 +86,10 @@ def main() -> None:
     aggregated = results_collector.aggregate(aligned)
 
     # 6. Write outputs
+    if not aggregated:
+        print("\nNo results collected — nothing to write.")
+        sys.exit(1)
+
     print("\nWriting outputs...")
     csv_writer.write_csv(aggregated)
     plot_generator.generate_plots(aggregated)

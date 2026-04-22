@@ -1,0 +1,18 @@
+# 3-node linear repeater chain (Barrett-Kok + entanglement swapping)
+# Equivalent experiment to examples/three_node_chain.rs
+
+[topology]
+type = "linear"
+nodes = 3
+distance_km = 10.0
+attenuation_db_per_km = 0.2
+memory_slots = 8
+source = 0
+dest = 2
+
+[hardware]
+profile = "erbium"
+
+[simulation]
+target_pairs = 100
+max_time_ms = 500000.0

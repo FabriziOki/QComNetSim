@@ -6,6 +6,8 @@ statistics: mean and standard deviation for every numeric metric.
 import statistics
 from collections import defaultdict
 
+from .runners.base import SimulatorRunner
+
 _NUMERIC_METRICS = ["success_rate", "avg_fidelity", "throughput", "memory_used", "wall_clock_ms"]
 
 

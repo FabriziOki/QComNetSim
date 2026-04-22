@@ -1,3 +1,4 @@
+pub mod config;
 pub mod network;
 pub mod physics;
 pub mod protocols;

@@ -178,6 +178,9 @@ pub struct Simulation {
     /// Prevents duplicate swaps being scheduled when check_and_schedule_swaps
     /// is called multiple times in the same simulation tick.
     pending_swaps: std::collections::HashSet<usize>,
+    /// Optional callback fired on each delivered pair: (delivered, target).
+    /// Used by the CLI to drive a live progress bar.
+    progress_fn: Option<Box<dyn Fn(usize, usize)>>,
 }
 
 impl Simulation {
@@ -198,7 +201,14 @@ impl Simulation {
             stats: SimulationStats::default(),
             path,
             pending_swaps: std::collections::HashSet::new(),
+            progress_fn: None,
         }
+    }
+
+    /// Register a progress callback fired after each delivered pair.
+    /// The closure receives `(pairs_delivered, target_pairs)`.
+    pub fn set_progress_callback(&mut self, f: impl Fn(usize, usize) + 'static) {
+        self.progress_fn = Some(Box::new(f));
     }
 
     /// Run until `target_pairs` delivered or `max_time_ms` elapsed.
@@ -525,6 +535,12 @@ impl Simulation {
         self.stats.pairs_delivered += 1;
         self.stats.delivered_fidelities.push(fidelity);
         self.stats.delivery_times_ms.push(time_ms);
+        // Fire progress callback with copied values to avoid borrow conflict
+        let delivered = self.stats.pairs_delivered;
+        let target = self.config.target_pairs;
+        if let Some(f) = &self.progress_fn {
+            f(delivered, target);
+        }
     }
 }
 

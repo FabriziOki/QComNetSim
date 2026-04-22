@@ -1,7 +1,7 @@
 import csv
 from pathlib import Path
 
-_OUT = Path(__file__).parents[4] / "data" / "comparison.csv"
+_OUT = Path(__file__).parents[3] / "data" / "comparison.csv"
 
 _COLUMNS = [
     "simulator", "distance_km",
