@@ -7,3 +7,4 @@ CLAUDE.md
 .agents/
 .claude
 _bmad
+run_validation.sh
