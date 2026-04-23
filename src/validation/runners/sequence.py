@@ -29,6 +29,8 @@ class SeQUeNCeRunner(SimulatorRunner):
                 distance_m=dist_km * 1000,
                 attenuation=params["attenuation_db_per_km"] / 1000,
                 num_attempts=params["num_attempts"],
+                params=params,
+                seed=seed,
             )
             wall_ms = (time.perf_counter() - t0) * 1000
             rows.append(self._make_row(dist_km, result, wall_ms, seed))
@@ -45,6 +47,7 @@ class SeQUeNCeRunner(SimulatorRunner):
                 attenuation=params["attenuation_db_per_km"] / 1000,
                 num_attempts=params["num_attempts"],
                 params=params,
+                seed=seed,
             )
             wall_ms = (time.perf_counter() - t0) * 1000
             rows.append(self._make_row(dist_km, result, wall_ms, seed))

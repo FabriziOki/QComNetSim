@@ -78,7 +78,7 @@ class EndNode(RoutingNode):
             fidelity=mp["fidelity"],
             frequency=mp["frequency_hz"],
             efficiency=mp["efficiency"],
-            coherence_time=mp["coherence_ps"],
+            coherence_time=mp["coherence_s"],
             wavelength=500,
         )
         memo.owner = self
@@ -101,7 +101,7 @@ class RepeaterNode(RoutingNode):
                 fidelity=mp["fidelity"],
                 frequency=mp["frequency_hz"],
                 efficiency=mp["efficiency"],
-                coherence_time=mp["coherence_ps"],
+                coherence_time=mp["coherence_s"],
                 wavelength=500,
             )
             memo.owner = self
@@ -234,10 +234,10 @@ class RepeaterManager:
 
 def _memory_params(params: dict) -> dict:
     return {
-        "fidelity": params.get("memory_fidelity", 0.95),
+        "fidelity":    params.get("memory_fidelity", 0.95),
         "frequency_hz": params.get("generation_frequency_khz", 2.0) * 1e3,
-        "efficiency": params.get("memory_efficiency", 0.9),
-        "coherence_ps": int(params.get("coherence_time_ms", 100.0) * 1e9),
+        "efficiency":  params.get("memory_efficiency", 0.9),
+        "coherence_s": params.get("coherence_time_ms", 100.0) * 1e-3,  # Memory expects seconds
     }
 
 
@@ -257,6 +257,7 @@ def run_experiment(
     attenuation: float = 0.0002,
     num_attempts: int = 50,
     params: dict | None = None,
+    seed: int = 0,
 ) -> dict:
     """
     Run a 3-node linear-chain experiment with entanglement swapping.
@@ -282,14 +283,14 @@ def run_experiment(
     repeater = RepeaterNode("repeater", tl, mp)
     bob = EndNode("bob", tl, mp)
 
-    alice.set_seed(0)
-    repeater.set_seed(1)
-    bob.set_seed(2)
+    alice.set_seed(seed * 10 + 0)
+    repeater.set_seed(seed * 10 + 1)
+    bob.set_seed(seed * 10 + 2)
 
     bsm_ab = BSMNode("bsm_ab", tl, ["alice", "repeater"])
     bsm_bc = BSMNode("bsm_bc", tl, ["repeater", "bob"])
-    bsm_ab.set_seed(3)
-    bsm_bc.set_seed(4)
+    bsm_ab.set_seed(seed * 10 + 3)
+    bsm_bc.set_seed(seed * 10 + 4)
 
     for bsm in (bsm_ab, bsm_bc):
         bsm.get_components_by_type("SingleAtomBSM")[0].update_detectors_params(
@@ -306,7 +307,11 @@ def run_experiment(
         qc = QuantumChannel(name, tl, attenuation=attenuation, distance=link_distance_m)
         qc.set_ends(sender, bsm_name)
 
-    # Classical channels — full mesh, fixed propagation delay
+    # Classical channels — full mesh.
+    # Delay is physics-based (fiber at ~2×10⁸ m/s) so the protocol completes
+    # within the memory coherence window for all hardware profiles.
+    cc_delay = max(1, int(link_distance_m / 2e8 * 1e12))  # per-hop delay in ps
+
     all_nodes = [alice, repeater, bob, bsm_ab, bsm_bc]
     for i, n1 in enumerate(all_nodes):
         for j, n2 in enumerate(all_nodes):
@@ -314,7 +319,7 @@ def run_experiment(
                 cc = ClassicalChannel(
                     f"cc_{n1.name}_{n2.name}", tl,
                     distance=link_distance_m * 2,
-                    delay=int(1e8),
+                    delay=cc_delay,
                 )
                 cc.set_ends(n1, n2.name)
 
@@ -357,6 +362,13 @@ def run_experiment(
 
         _pair_gen(p_alice,    alice,    alice_memo, p_rep_left, repeater, left_memo)
         _pair_gen(p_rep_rght, repeater, right_memo, p_bob,     bob,      bob_memo)
+
+        # Clear stale time-bin reservations from quantum channels before each round.
+        # Without this, send_bins accumulates across rounds and schedule_qubit may
+        # return a different bin than requested, triggering SeQUeNCe's emit-time assert.
+        for node in (alice, repeater, bob):
+            for qc in node.qchannels.values():
+                qc.send_bins.clear()
 
         # Advance simulated clock (100 ms gap between rounds for decoherence effects)
         tl.time = tl.now() + 1e11

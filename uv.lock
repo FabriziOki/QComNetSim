@@ -1837,6 +1837,7 @@ dependencies = [
     { name = "matplotlib" },
     { name = "numpy" },
     { name = "pandas" },
+    { name = "qns" },
     { name = "qunetsim" },
     { name = "seaborn" },
     { name = "sequence" },
@@ -1856,12 +1857,25 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.24.0" },
     { name = "pandas", specifier = ">=2.0.0" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=7.0.0" },
+    { name = "qns", specifier = ">=0.1.5" },
     { name = "qunetsim", specifier = ">=0.1.3.post1" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.1.0" },
     { name = "seaborn", specifier = ">=0.12.0" },
     { name = "sequence", specifier = ">=0.8.1" },
 ]
 provides-extras = ["dev"]
+
+[[package]]
+name = "qns"
+version = "0.1.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+    { name = "pandas" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/5e/29/905a721bbd1ac899bfb5ba1c985220840036a1d47dd773f49f4ffa6e5022/qns-0.1.5-py3-none-any.whl", hash = "sha256:91e4cfb0251ab1ab466c1799ec310c77c8c59f5021d69299e420c62777bfb458", size = 108552, upload-time = "2022-09-26T07:39:46.578Z" },
+]
 
 [[package]]
 name = "qunetsim"

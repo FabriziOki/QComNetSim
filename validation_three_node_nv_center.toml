@@ -1,0 +1,19 @@
+[scenario]
+type                  = "three_node"
+hardware_profile      = "nv_center"
+distances_km          = [1, 5, 10, 20, 50]
+attenuation_db_per_km = 0.2
+num_attempts          = 100
+seeds                 = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14]
+
+# NV-center in diamond — cavity-enhanced collection efficiency profile.
+# memory_fidelity: NV electron-spin / photon entanglement fidelity (0.92).
+# memory_efficiency: photon collection efficiency with photonic crystal cavity (0.50).
+# coherence_time_ms: electron-spin T2 coherence (~10 ms at room temperature).
+# bsm_efficiency: SNSPD detector efficiency for NV zero-phonon line photons (0.85).
+[hardware]
+memory_fidelity          = 0.92
+memory_efficiency        = 0.50
+coherence_time_ms        = 10.0
+bsm_efficiency           = 0.85
+generation_frequency_khz = 2.0

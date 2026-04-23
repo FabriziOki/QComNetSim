@@ -103,6 +103,7 @@ class QComNetSimRunner(SimulatorRunner):
         scenario = params.get("scenario", "two_node")
         nodes = 3 if scenario == "three_node" else 2
         dest  = nodes - 1
+        profile = params.get("hardware_profile", "erbium")
         return f"""\
 [topology]
 type = "linear"
@@ -114,7 +115,7 @@ source = 0
 dest = {dest}
 
 [hardware]
-profile = "erbium"
+profile = "{profile}"
 memory_efficiency = {params["memory_efficiency"]}
 initial_fidelity = {params["memory_fidelity"]}
 coherence_time_ms = {params["coherence_time_ms"]}
