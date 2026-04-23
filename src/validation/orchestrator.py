@@ -31,7 +31,7 @@ _AVAILABLE_RUNNERS = {
     "simqn": SimQNRunner,
 }
 
-_DEFAULT_RUNNERS = ["qcomnetsim", "sequence"]
+_DEFAULT_RUNNERS = ["qcomnetsim", "sequence", "simqn"]
 
 
 def main() -> None:
@@ -41,6 +41,11 @@ def main() -> None:
         "--simulators",
         default=",".join(_DEFAULT_RUNNERS),
         help=f"Comma-separated list of simulators to run. Available: {', '.join(_AVAILABLE_RUNNERS)}",
+    )
+    parser.add_argument(
+        "--output",
+        default=None,
+        help="Override output CSV path (default: data/comparison.csv)",
     )
     args = parser.parse_args()
 
@@ -91,7 +96,8 @@ def main() -> None:
         sys.exit(1)
 
     print("\nWriting outputs...")
-    csv_writer.write_csv(aggregated)
+    out_path = Path(args.output) if args.output else None
+    csv_writer.write_csv(aggregated, path=out_path) if out_path else csv_writer.write_csv(aggregated)
     plot_generator.generate_plots(aggregated)
 
     print("\nDone.")

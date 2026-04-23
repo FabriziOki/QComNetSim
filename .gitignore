@@ -3,7 +3,7 @@
 TODO.md
 CLAUDE.md
 /__pycache__/**
-
+/paper/**
 # AgentOps session artifacts
 .agents/
 .claude
