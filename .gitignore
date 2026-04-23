@@ -2,6 +2,7 @@
 /data/**
 TODO.md
 CLAUDE.md
+/__pycache__/**
 
 # AgentOps session artifacts
 .agents/

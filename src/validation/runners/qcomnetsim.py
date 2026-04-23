@@ -87,23 +87,31 @@ class QComNetSimRunner(SimulatorRunner):
         """
         Map the flat validation params dict to the QComNetSim TOML schema.
 
-        Mapping:
-          params["attenuation_db_per_km"] → topology.attenuation_db_per_km
-          params["memory_efficiency"]     → hardware.memory_efficiency
-          params["memory_fidelity"]       → hardware.initial_fidelity
-          params["coherence_time_ms"]     → hardware.coherence_time_ms
-          params["bsm_efficiency"]        → hardware.generation_bsm_efficiency
-          params["num_attempts"]          → simulation.target_pairs
+        Two-node mapping:
+          nodes = 2, source = 0, dest = 1
+
+        Three-node mapping:
+          nodes = 3, source = 0, dest = 2
+          distance_km is the per-link distance, matching SeQUeNCe's convention.
+
+        Hardware fields:
+          memory_efficiency        → hardware.memory_efficiency
+          memory_fidelity          → hardware.initial_fidelity
+          coherence_time_ms        → hardware.coherence_time_ms
+          bsm_efficiency           → hardware.generation_bsm_efficiency / swap_bsm_efficiency
         """
+        scenario = params.get("scenario", "two_node")
+        nodes = 3 if scenario == "three_node" else 2
+        dest  = nodes - 1
         return f"""\
 [topology]
 type = "linear"
-nodes = 2
+nodes = {nodes}
 distance_km = {dist_km}
 attenuation_db_per_km = {params["attenuation_db_per_km"]}
 memory_slots = 200
 source = 0
-dest = 1
+dest = {dest}
 
 [hardware]
 profile = "erbium"

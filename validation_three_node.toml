@@ -1,0 +1,13 @@
+[scenario]
+type                  = "three_node"
+distances_km          = [1, 5, 10, 20, 50]
+attenuation_db_per_km = 0.2
+num_attempts          = 100
+seeds                 = [0, 1, 2]
+
+[hardware]
+memory_fidelity          = 0.95
+memory_efficiency        = 0.9
+coherence_time_ms        = 100.0
+bsm_efficiency           = 0.9
+generation_frequency_khz = 2.0

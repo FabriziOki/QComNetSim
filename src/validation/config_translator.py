@@ -38,6 +38,7 @@ def load(path: str) -> dict:
 
     params = {
         # Scenario
+        "scenario": scenario.get("type", "two_node"),
         "distances_km": scenario["distances_km"],
         "attenuation_db_per_km": scenario.get("attenuation_db_per_km", 0.2),
         "num_attempts": scenario.get("num_attempts", 100),
