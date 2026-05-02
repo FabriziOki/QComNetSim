@@ -25,16 +25,27 @@ QComNetSim provides automated cross-simulator benchmarking by translating config
 
 ### Prerequisites
 
-- Rust 1.75+ — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
-- uv (Python env manager) — `curl -LsSf https://astral.sh/uv/install.sh | sh`
+| Dependency | Linux | Windows |
+|---|---|---|
+| Rust 1.75+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` | [rustup-init.exe](https://rustup.rs) — also installs MSVC build tools |
+| uv (Python) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` | `powershell -c "irm https://astral.sh/uv/install.ps1 \| iex"` |
 
 ### Build
 
+**Linux**
 ```bash
 git clone https://github.com/FabriziOki/QComNetSim
 cd QComNetSim
 cargo build --release
 uv sync --python 3.12   # installs SeQUeNCe, SimQN, and validation deps
+```
+
+**Windows** (PowerShell)
+```powershell
+git clone https://github.com/FabriziOki/QComNetSim
+cd QComNetSim
+cargo build --release
+uv sync --python 3.12
 ```
 
 ### Run a simulation
@@ -43,7 +54,7 @@ uv sync --python 3.12   # installs SeQUeNCe, SimQN, and validation deps
 # 2-node entanglement generation (Erbium, 10 km)
 cargo run --release -- -c configurations/two_node_entanglement.toml
 
-# 3-node chain with entanglement swapping (Erbium)
+# 3-node chain with entanglement swapping (Erbium), write CSV output
 cargo run --release -- -c configurations/three_node_erbium.toml -o results.csv
 
 # List available hardware profiles
@@ -91,6 +102,53 @@ Individual profile fields can be overridden inline:
 profile     = "erbium"
 coherence_time_s = 2.0   # override a single parameter
 ```
+
+---
+
+## Using QComNetSim as a Library
+
+QComNetSim is a standard Rust library crate. You can write fully custom experiments directly in Rust — no TOML required — and get access to the full API: topology construction, protocol parameters, simulation config, and per-pair statistics.
+
+Add it as a dependency in your `Cargo.toml`:
+
+```toml
+[dependencies]
+qcomnetsim = { git = "https://github.com/FabriziOki/QComNetSim" }
+```
+
+Then write your experiment:
+
+```rust
+use qcomnetsim::network::{find_shortest_path, NetworkTopology};
+use qcomnetsim::protocols::barrett_kok::BarrettKokProtocol;
+use qcomnetsim::protocols::swapping::EntanglementSwappingProtocol;
+use qcomnetsim::simulation::{Simulation, SimulationConfig};
+use qcomnetsim::PhysicsProfile;
+
+fn main() {
+    // Pick a hardware platform
+    let profile = PhysicsProfile::nv_center();
+
+    // Build a 3-node linear chain: Alice ── Bob ── Carol
+    let topology = NetworkTopology::new_linear(3, 8, 10.0, 0.2);
+    let path = find_shortest_path(&topology, 0, 2).unwrap();
+
+    // Instantiate protocols from the profile
+    let gen  = BarrettKokProtocol::from_profile(&profile);
+    let swap = EntanglementSwappingProtocol::from_profile(&profile);
+    let cfg  = SimulationConfig { target_pairs: 500, ..SimulationConfig::from_profile(&profile) };
+
+    // Run and inspect results
+    let mut sim = Simulation::new(topology, gen, swap, cfg, path);
+    sim.run();
+    sim.stats.print_summary();
+
+    println!("Mean fidelity: {:.4}", sim.stats.mean_fidelity().unwrap());
+    println!("Success rate:  {:.4}", sim.stats.generation_success_rate());
+}
+```
+
+The `examples/` directory contains more complete experiments, including cross-platform comparison (`platform_comparison.rs`) and distance sweeps.
 
 ---
 
@@ -146,7 +204,7 @@ If you use QComNetSim in your research, please cite:
 
 ## Development Roadmap
 
-### Semester 1 (Fall 2024)
+### Capstone I (Fall 2025)
 - [x] Core library and quantum state representation
 - [x] 2-node Barrett-Kok entanglement generation
 - [x] Realistic multi-factor noise and loss model
@@ -163,10 +221,3 @@ If you use QComNetSim in your research, please cite:
 - [ ] QuISP and NetSquid validation runners *(future work)*
 
 ---
-
-## References
-
-1. Wu et al. (2021). *SeQUeNCe*. Quantum Science and Technology. https://doi.org/10.1088/2058-9565/ac22f6
-2. Bel & Kiran (2024). *Simulators for Quantum Network Modelling: A Comprehensive Review*. arXiv:2408.11993
-3. Chung et al. (2025). *Cross-Validating Quantum Network Simulators*. arXiv:2504.01290
-4. Kar & Kumar (2023). *Routing Protocols for Quantum Networks*. arXiv:2305.00708
