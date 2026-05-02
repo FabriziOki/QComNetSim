@@ -2,142 +2,171 @@
 <img src="assets/name.svg" alt="QComNetSim Logo" width="1000"/>
 </div>
 
-> **Status**: Active Development - (Spring 2026 — Capstone II)
+> **Status**: GlobeCom 2026 submission — Spring 2026
 
-A high-performance quantum network simulator written in Rust, designed for educational purposes and cross-simulator validation.
+A high-performance quantum network simulator written in Rust with an integrated cross-simulator validation engine.
 
 ---
 
-## Project Vision
+## Overview
 
-QComNetSim aims to create a small-scale, educational quantum network simulator that addresses common limitations in existing simulators while providing built-in validation capabilities. Unlike large-scale simulators, QComNetSim focuses on:
+QComNetSim provides automated cross-simulator benchmarking by translating configurations, orchestrating concurrent execution, and performing statistical comparison across simulators. It addresses the validation gap in quantum network research: without cross-verification, it is difficult to determine whether result discrepancies reflect implementation bugs, valid modeling trade-offs, or incorrect physics assumptions.
 
-- **Educational clarity**: 4-5 node networks with well-documented, understandable code
-- **Performance**: Leveraging Rust for speed and memory safety
-- **Validation-first design**: Built-in comparison with established simulators
-- **Modular architecture**: Easy to extend and modify for research
+**Key capabilities:**
+- Multi-hop BFS routing with entanglement swapping over linear chains
+- Configurable hardware physics profiles (Erbium, NV-center) via TOML
+- Automated validation pipeline comparing QComNetSim against SeQUeNCe and SimQN
+- ~45× wall-clock speedup over SeQUeNCe on identical scenarios
+- Full reproducibility: every result in the paper is reproduced with `qcomnetsim -c configurations/<name>.toml`
+
+---
+
+## Quick Start
+
+### Prerequisites
+
+- Rust 1.75+ — `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`
+- uv (Python env manager) — `curl -LsSf https://astral.sh/uv/install.sh | sh`
+
+### Build
+
+```bash
+git clone https://github.com/FabriziOki/QComNetSim
+cd QComNetSim
+cargo build --release
+uv sync --python 3.12   # installs SeQUeNCe, SimQN, and validation deps
+```
+
+### Run a simulation
+
+```bash
+# 2-node entanglement generation (Erbium, 10 km)
+cargo run --release -- -c configurations/two_node_entanglement.toml
+
+# 3-node chain with entanglement swapping (Erbium)
+cargo run --release -- -c configurations/three_node_erbium.toml -o results.csv
+
+# List available hardware profiles
+cargo run --release -- --profiles
+```
+
+### Run the cross-simulator validation pipeline
+
+```bash
+uv run python src/validation/orchestrator.py validation.toml
+# Output: data/comparison.csv and data/plots/
+```
+
+---
+
+## TOML Configuration
+
+All experiments are declared in a single TOML file — no recompilation required.
+
+```toml
+# 3-node chain — Erbium-167 platform
+[topology]
+type        = "linear"
+nodes       = 3
+distance_km = 10.0
+attenuation_db_per_km = 0.2
+memory_slots = 8
+source      = 0
+dest        = 2
+
+[hardware]
+profile = "erbium"       # or "nv_center", "ideal"
+
+[simulation]
+target_pairs  = 100
+max_time_ms   = 10000000.0
+```
+
+**Available profiles:** `erbium` (t_c=1.3 s, C=500, γ=14 Hz), `nv_center` (t_c=1.0 s, C=1000, γ=13.3 MHz), `ideal`.
+
+Individual profile fields can be overridden inline:
+
+```toml
+[hardware]
+profile     = "erbium"
+coherence_time_s = 2.0   # override a single parameter
+```
+
+---
+
+## Implemented Protocols
+
+| Protocol | Description |
+|---|---|
+| Barrett-Kok | Heralded entanglement generation via BSM |
+| BBPSSW | Entanglement purification (fidelity improvement at pair cost) |
+| Entanglement Swapping | Werner-state BSM for multi-hop extension |
+
+Routing uses BFS shortest-path over the network graph; repeater nodes are extracted automatically from the path.
+
+---
+
+## Reproducibility
+
+Every result in the paper corresponds to one of the following configurations:
+
+| Figure | Configuration file |
+|---|---|
+| Success rate / Fidelity (cross-simulator) | `configurations/two_node_entanglement.toml` + validation pipeline |
+| Multi-hop fidelity | `configurations/three_node_erbium.toml` |
+| Hardware comparison | `configurations/three_node_erbium.toml` vs `configurations/three_node_nv_center.toml` |
+| Wall-clock benchmark | `configurations/two_node_entanglement.toml` + SeQUeNCe runner |
+
+---
+
+## Citing This Work
+
+If you use QComNetSim in your research, please cite:
+
+```bibtex
+@inproceedings{diaz2026qcomnetsim,
+  title     = {{QComNetSim}: A Validated Quantum Network Simulator with Cross-Platform Benchmarking},
+  author    = {Diaz, Fabrizio and Kar, Binayak and Kumar, Pankaj and Shen, Shan-Hsiang},
+  booktitle = {Proceedings of IEEE Global Communications Conference (GlobeCom)},
+  year      = {2026}
+}
+```
+
+---
+
+## Project Team
+
+| Role | Name | Affiliation |
+|---|---|---|
+| Developer | Fabrizio Diaz | NTUST / UPTP (exchange) |
+| Direct Advisor | Pankaj Kumar, PhD | Quantum Research Lab, NTUST |
+| Faculty Advisor | Prof. Binayak Kar | Quantum Research Lab, NTUST |
+
+---
 
 ## Development Roadmap
 
 ### Semester 1 (Fall 2024)
-- [x] Project architecture design
-- [x] Core library setup
-- [x] Basic quantum state representation
-- [x] 2-node linear entanglement generation
-- [x] Add Realistic Noise & Loss Model
-- [x] Validation Engine against SeQUeNCe
-- [x] TOML Configuration file support
-- [x] Basic CLI interface with CSV output
+- [x] Core library and quantum state representation
+- [x] 2-node Barrett-Kok entanglement generation
+- [x] Realistic multi-factor noise and loss model
+- [x] Validation engine against SeQUeNCe
+- [x] TOML configuration system and CLI
 
 ### Capstone II (Spring 2026)
-- [ ] Multi-hop topology (3-node chain with routing and resource contention)
-- [ ] Configurable physics engine (PhysicsProfile trait, TOML-driven)
-- [ ] End-to-end benchmarks vs. SeQUeNCe (wall-clock, full protocol runs)
-- [ ] Validation engine documentation and metric alignment
-- [ ] Statistical rigor and paper narrative fixes
-
-## Motivation
-
-Quantum networks promise revolutionary capabilities in secure communication, distributed quantum computing, and sensing. However, designing and validating quantum network protocols faces fundamental challenges:
-
-**Physical Complexity**: Real quantum systems exhibit decoherence, photon loss, imperfect gates, and measurement errors. Simulators that ignore these effects produce unrealistic results that fail in deployment.
-
-**Performance Requirements**: Simulating realistic noise models requires tracking density matrices, applying error channels, and Monte Carlo sampling—computationally intensive operations that become prohibitive for large networks or long timescales.
-
-**Validation Gap**: Without cross-verification against established frameworks, new simulators risk introducing subtle physics errors that invalidate results. Yet most tools lack built-in validation mechanisms.
-
-**Accessibility**: Researchers need tools that balance accuracy with usability—complex enough to model real quantum phenomena, yet approachable enough for rapid protocol development and iteration.
-
-QComNetSim addresses these challenges through:
-- **Realistic physics modeling** with configurable noise parameters
-- **High-performance execution** via Rust's zero-cost abstractions
-- **Built-in validation framework** for cross-simulator verification
-- **Modular architecture** enabling protocol experimentation without sacrificing accuracy
----
-
-## Building & Running
-
-### Prerequisites
-- Rust 1.75+ (`curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh`)
-- UV package manager (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
-
-### Setup
-```bash
-git clone https://github.com/yourusername/qcomnetsim
-cd qcomnetsim
-
-# python venv (optional but recommended)
-uv venv
-
-source .venv/bin/activate
-
-# Install Python dependencies
-uv sync
-
-# Build Rust simulator
-cargo build --release
-```
-
-### Running Simulations
-
-> **Note**: CLI and TOML configuration system is under testing. Temporary workflow uses example binaries:
-```bash
-# Run Barrett-Kok protocol simulation
-cargo run --release --example two_node_barrett_kok
-
-# Output: data/qcomnetsim_results.csv
-```
-
-### Cross-Simulator Validation
-
-Validate QComNetSim against SeQUeNCe:
-```bash
-# Run complete validation pipeline
-./run_validation.sh
-
-# Output: 
-#   data/sequence_results.csv
-#   data/comparison.csv
-#   data/plots/*.png
-```
-## Project Team
-
-- **Developer**: Fabrizio Diaz, Undergraduate CS Student, NTUST
-- **Direct Advisor**: Pankaj Kumar, PhD Scholar, NTUST
-- **Faculty Advisor**: Prof. Binayak Kar, Assistant Professor, NTUST
-- **Lab**: Quantum Research Lab
-
-## Acknowledgments
-
-This project is part of a two-semester capstone project at National Taiwan University of Science and Technology (NTUST), where I am an exchange student from Taiwan-Paraguay Polytechnic University. 
-
-This work is conducted under the guidance of Binayak Kar and Pankaj Kumar at Quantum Research Lab, NTUST.
+- [x] Multi-hop topology (3-node chain, BFS routing, entanglement swapping)
+- [x] Configurable physics profiles (`PhysicsProfile` — Erbium, NV-center, ideal)
+- [x] End-to-end wall-clock benchmarks vs. SeQUeNCe (~45× speedup)
+- [x] Metric Aligner for cross-simulator definition alignment
+- [x] Statistical rigor: 15-seed mean ± std across all distance sweeps
+- [ ] Resource contention modeling across concurrent paths *(future work)*
+- [ ] QuISP and NetSquid validation runners *(future work)*
 
 ---
 
-##  References
+## References
 
-This project builds upon established research in quantum network simulation:
-
-1. **SeQUeNCe - Simulator of Quantum Network Communication**
-   - Wu, X., Kolar, A., Chung, J., Jin, D., Zhong, T., Kettimuthu, R., & Suchara, M. (2021). SeQUeNCe: a customizable discrete-event simulator of quantum networks. *Quantum Science and Technology*, 6(4). https://doi.org/10.1088/2058-9565/ac22f6
-   - Repository: https://github.com/sequence-toolbox/SeQUeNCe
-   - Our approach: Validate against SeQUeNCe's accurate physics models
-
-2. **Routing Protocols for Quantum Networks**
-   - Kar, B., & Kumar, P. (2023). Routing Protocols for Quantum Networks: Overview and Challenges. arXiv:2305.00708 [quant-ph]. https://arxiv.org/abs/2305.00708
-   - Focus: Quantum routing protocols and network design challenges
-   - Connection: QComNetSim will support routing protocol research and validation
-
-3. **Quantum Network Simulators: A Comprehensive Review**
-   - Bel, O., & Kiran, M. (2024). Simulators for Quantum Network Modelling: A Comprehensive Review. arXiv:2408.11993 [quant-ph]. https://arxiv.org/abs/2408.11993
-   - Focus: Survey of quantum network simulators and validation methods
-   - Connection: Informs our validation framework design and benchmarking approach
-
-4. **Other Quantum Network Simulators**:
-   - QuNetSim: https://github.com/tqsd/QuNetSim
-   - SimQN: https://github.com/ertuil/SimQN
-
----
-
-> **Note**: This is an active research project. Documentation, features, and APIs are subject to change as development progresses.
+1. Wu et al. (2021). *SeQUeNCe*. Quantum Science and Technology. https://doi.org/10.1088/2058-9565/ac22f6
+2. Bel & Kiran (2024). *Simulators for Quantum Network Modelling: A Comprehensive Review*. arXiv:2408.11993
+3. Chung et al. (2025). *Cross-Validating Quantum Network Simulators*. arXiv:2504.01290
+4. Kar & Kumar (2023). *Routing Protocols for Quantum Networks*. arXiv:2305.00708
