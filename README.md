@@ -2,7 +2,7 @@
 <img src="assets/name.svg" alt="QComNetSim Logo" width="1000"/>
 </div>
 
-> **Status**: GlobeCom 2026 submission — Spring 2026
+> **Status**: GlobeCom 2026 submission; Spring 2026
 
 A high-performance quantum network simulator written in Rust with an integrated cross-simulator validation engine.
 
@@ -27,7 +27,7 @@ QComNetSim provides automated cross-simulator benchmarking by translating config
 
 | Dependency | Linux | Windows |
 |---|---|---|
-| Rust 1.75+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` | [rustup-init.exe](https://rustup.rs) — also installs MSVC build tools |
+| Rust 1.75+ | `curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \| sh` | [rustup-init.exe](https://rustup.rs), installs MSVC build tools |
 | uv (Python) | `curl -LsSf https://astral.sh/uv/install.sh \| sh` | `powershell -c "irm https://astral.sh/uv/install.ps1 \| iex"` |
 
 ### Build
@@ -72,7 +72,7 @@ uv run python src/validation/orchestrator.py validation.toml
 
 ## TOML Configuration
 
-All experiments are declared in a single TOML file — no recompilation required.
+All experiments are declared in a single TOML file.
 
 ```toml
 # 3-node chain — Erbium-167 platform
@@ -107,7 +107,7 @@ coherence_time_s = 2.0   # override a single parameter
 
 ## Using QComNetSim as a Library
 
-QComNetSim is a standard Rust library crate. You can write fully custom experiments directly in Rust — no TOML required — and get access to the full API: topology construction, protocol parameters, simulation config, and per-pair statistics.
+QComNetSim is a standard Rust library crate. You can write fully custom experiments directly in Rust and get access to the full API: topology construction, protocol parameters, simulation config, and per-pair statistics.
 
 Add it as a dependency in your `Cargo.toml`:
 
@@ -219,5 +219,3 @@ If you use QComNetSim in your research, please cite:
 - [x] Statistical rigor: 15-seed mean ± std across all distance sweeps
 - [ ] Resource contention modeling across concurrent paths *(future work)*
 - [ ] QuISP and NetSquid validation runners *(future work)*
-
----
