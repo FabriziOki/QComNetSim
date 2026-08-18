@@ -4,6 +4,8 @@
 
 > **Status**: GlobeCom 2026 submission; Spring 2026
 
+**Fabrizio Diaz, Binayak Kar, Pankaj Kumar, Shan-Hsiang Shen**
+
 A high-performance quantum network simulator written in Rust with an integrated cross-simulator validation engine.
 
 ---
@@ -196,9 +198,9 @@ If you use QComNetSim in your research, please cite:
 
 | Role | Name | Affiliation |
 |---|---|---|
-| Developer | Fabrizio Diaz | NTUST / UPTP (exchange) |
-| Direct Advisor | Pankaj Kumar, PhD | Quantum Research Lab, NTUST |
-| Faculty Advisor | Prof. Binayak Kar | Quantum Research Lab, NTUST |
+| Developer | Fabrizio Diaz | Department of Information Engineering, Universidad Politécnica Taiwán-Paraguay, Paraguay |
+| Direct Advisor | Prof. Pankaj Kumar | Department of Computer Science and Information Engineering, National Taiwan University of Science and Technology, Taiwan |
+| Faculty Advisor | Prof. Binayak Kar | Department of Computer Science and Information Engineering, National Taiwan University of Science and Technology, Taiwan |
 
 ---
 
